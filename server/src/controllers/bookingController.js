@@ -11,9 +11,9 @@ const { getIO } = require('../config/socket');
 // @desc    Create booking (User)
 const createBooking = async (req, res, next) => {
   try {
-    const { salon, services, bookingDate, startTime, couponCode, paymentMethod, packageId } = req.body;
+    const { salon, services, bookingDate, startTime, couponCode, paymentMethod, packageId, useWallet } = req.body;
     const result = await bookingService.createBooking({
-      userId: req.user.id, salonId: salon, services, bookingDate, startTime, couponCode, paymentMethod, packageId
+      userId: req.user.id, salonId: salon, services, bookingDate, startTime, couponCode, paymentMethod, packageId, useWallet
     });
 
     // Send notification to vendor & admin
@@ -57,11 +57,9 @@ const createBooking = async (req, res, next) => {
 // @desc    Preview booking total (calculates full financial breakdown)
 const calculateTotal = async (req, res, next) => {
   try {
-    const { salon, services, couponCode, packageId } = req.body;
-    // We only need the calculation part of createBooking, but we can reuse calculateBookingTotal from bookingService
-    // Let's import it directly or create a wrapper in bookingService.
+    const { salon, services, couponCode, packageId, useWallet } = req.body;
     const result = await bookingService.previewBookingTotal({
-      salonId: salon, services, couponCode, packageId
+      userId: req.user?.id, salonId: salon, services, couponCode, packageId, useWallet
     });
     res.json({ success: true, data: result });
   } catch (error) {

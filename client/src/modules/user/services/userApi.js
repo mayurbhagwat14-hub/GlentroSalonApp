@@ -43,6 +43,9 @@ export const verifyBookingCompletion = (id, otp) => api.patch(`/bookings/${id}/v
 export const createPaymentOrder = (data) => api.post('/payments/create-order', data);
 export const verifyPayment = (data) => api.post('/payments/verify', data);
 
+// Wallet
+export const getMyWallet = () => api.get('/user/wallet');
+
 export const getAvailability = (salonId, params) => api.get(`/bookings/availability/${salonId}`, { params });
 export const getComplexAvailability = (salonId, data) => api.post(`/bookings/availability/${salonId}`, data);
 

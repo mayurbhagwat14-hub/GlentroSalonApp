@@ -28,8 +28,9 @@ exports.createOrder = async (req, res) => {
     const result = await paymentService.createRazorpayOrder(req.body.bookingId, req.user.id);
     res.status(200).json({ success: true, data: result });
   } catch (error) {
-    console.error('[createOrder]', error.message);
-    res.status(400).json({ success: false, message: error.message });
+    const errorMsg = error?.error?.description || error?.message || 'Failed to create payment order';
+    console.error('[createOrder]', errorMsg);
+    res.status(400).json({ success: false, message: errorMsg });
   }
 };
 
@@ -55,8 +56,9 @@ exports.verifyPayment = async (req, res) => {
       data: { transaction: result.transaction },
     });
   } catch (error) {
-    console.error('[verifyPayment]', error.message);
-    res.status(400).json({ success: false, message: error.message });
+    const errorMsg = error?.error?.description || error?.message || 'Payment verification failed';
+    console.error('[verifyPayment]', errorMsg);
+    res.status(400).json({ success: false, message: errorMsg });
   }
 };
 

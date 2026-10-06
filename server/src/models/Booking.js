@@ -63,6 +63,29 @@ const bookingSchema = new mongoose.Schema(
       default: 0,
     },
 
+    // Glentro Wallet & Online Cashback
+    walletAmountApplied: {
+      type: Number,
+      default: 0,
+    },
+    walletAmountAppliedPaise: {
+      type: Number,
+      default: 0,
+    },
+    cashbackEarned: {
+      type: Number,
+      default: 0,
+    },
+    cashbackEarnedPaise: {
+      type: Number,
+      default: 0,
+    },
+    cashbackStatus: {
+      type: String,
+      enum: ['NONE', 'PENDING', 'CREDITED', 'REVERSED'],
+      default: 'NONE',
+    },
+
     // ─── Financial Snapshot (immutable after creation) ─────────────────────────
     // All values saved at booking time; never recalculated using current config.
     pricing: {
@@ -76,6 +99,7 @@ const bookingSchema = new mongoose.Schema(
       grossAmountPaise: { type: Number },
       platformFee: { type: Number, default: 0 },       // Platform fee (charged on top)
       platformFeePaise: { type: Number },
+      platformFeeType: { type: String, enum: ['PERCENTAGE', 'FIXED'], default: 'PERCENTAGE' },
       commissionAmount: { type: Number, default: 0 },  // Commission (deducted from vendor)
       commissionAmountPaise: { type: Number },
       finalAmount: { type: Number, default: 0 },       // What customer pays
@@ -87,6 +111,10 @@ const bookingSchema = new mongoose.Schema(
       platformFeePercentage: { type: Number, default: 0 },
       commissionPercentage: { type: Number, default: 0 },
       vendorPlanType: { type: String, enum: ['COMMISSION', 'SUBSCRIPTION'] },
+      walletAmountApplied: { type: Number, default: 0 },
+      walletAmountAppliedPaise: { type: Number, default: 0 },
+      cashbackEarned: { type: Number, default: 0 },
+      cashbackEarnedPaise: { type: Number, default: 0 },
     },
 
     coupon: {

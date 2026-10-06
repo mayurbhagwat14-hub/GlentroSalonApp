@@ -8,10 +8,20 @@ const CommissionsPage = () => {
   const [commissions, setCommissions] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [feeForm, setFeeForm] = useState('');
+  const [feeType, setFeeType] = useState('PERCENTAGE'); // 'PERCENTAGE' or 'FIXED'
+  const [feeForm, setFeeForm] = useState('5');
+  const [feeAmountForm, setFeeAmountForm] = useState('30');
   const [adminCommForm, setAdminCommForm] = useState('');
   const [commForm, setCommForm] = useState({ vendor: '', percentage: '' });
   const [saving, setSaving] = useState(false);
+
+  // Online Payment Cashback state
+  const [cashbackPolicy, setCashbackPolicy] = useState({
+    enabled: false,
+    type: 'FIXED', // 'FIXED' or 'PERCENTAGE'
+    percentage: 5,
+    amount: 20,
+  });
 
   // Call Policy state
   const [callPolicy, setCallPolicy] = useState({
@@ -67,8 +77,19 @@ const CommissionsPage = () => {
 
       if (p.data.data) { 
         const fee = p.data.data;
-        setFeeForm(fee.feePercentage !== undefined ? fee.feePercentage : fee.percentage); 
+        setFeeType(fee.feeType || 'PERCENTAGE');
+        setFeeForm(fee.feePercentage !== undefined ? fee.feePercentage : (fee.percentage || 5)); 
+        setFeeAmountForm(fee.feeAmount !== undefined ? fee.feeAmount : 30);
         setAdminCommForm(fee.adminCommissionPercentage || 0);
+
+        // Load Cashback policy
+        setCashbackPolicy({
+          enabled: Boolean(fee.onlineCashbackEnabled),
+          type: fee.cashbackType || 'FIXED',
+          percentage: fee.cashbackPercentage !== undefined ? fee.cashbackPercentage : 5,
+          amount: fee.cashbackAmount !== undefined ? fee.cashbackAmount : 20,
+        });
+
         // Load call policy
         setCallPolicy({
           callEnabled: fee.callEnabled !== undefined ? fee.callEnabled : true,
@@ -98,7 +119,13 @@ const CommissionsPage = () => {
     setSaving(true);
     try { 
       await updatePlatformFee({
+        feeType,
         feePercentage: Number(feeForm),
+        feeAmount: Number(feeAmountForm),
+        onlineCashbackEnabled: cashbackPolicy.enabled,
+        cashbackType: cashbackPolicy.type,
+        cashbackPercentage: Number(cashbackPolicy.percentage),
+        cashbackAmount: Number(cashbackPolicy.amount),
         adminCommissionPercentage: Number(adminCommForm),
         // Call policy
         callEnabled: callPolicy.callEnabled,
@@ -205,20 +232,79 @@ const CommissionsPage = () => {
         <div className="bg-surface rounded-2xl p-6 border border-border flex flex-col gap-6 shadow-sm">
           <h3 className="font-semibold text-on-surface border-b border-border pb-3">Global Settings</h3>
           <form onSubmit={handleFeeSubmit} className="flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row gap-6 items-center justify-between">
-              <div>
-                <h4 className="font-medium text-on-surface">Global Platform Fee</h4>
-                <p className="text-sm text-muted-text mt-1">Platform fee deducted per booking</p>
+            {/* ── Global Platform Fee (Direct Money vs Percentage Toggle) ──────── */}
+            <div className="p-4 rounded-xl bg-surface-elevated/50 border border-border flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px] text-primary">receipt_long</span>
+                    Customer Platform Fee
+                  </h4>
+                  <p className="text-sm text-muted-text mt-0.5">
+                    Extra fee added on customer checkout ({feeType === 'FIXED' ? 'Direct Rupee Amount' : 'Percentage of Services'})
+                  </p>
+                </div>
+
+                {/* Toggle: Direct Money (₹) vs Percentage (%) */}
+                <div className="flex items-center bg-surface-variant p-1 rounded-xl border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setFeeType('FIXED')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                      feeType === 'FIXED'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-muted-text hover:text-on-surface'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">currency_rupee</span>
+                    Direct Money (₹)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFeeType('PERCENTAGE')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                      feeType === 'PERCENTAGE'
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-muted-text hover:text-on-surface'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">percent</span>
+                    Percentage (%)
+                  </button>
+                </div>
               </div>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  value={feeForm} 
-                  onChange={e => setFeeForm(e.target.value)} 
-                  required 
-                  className="w-24 pl-3 pr-8 py-2.5 rounded-xl bg-surface-elevated border border-border text-on-surface text-center font-bold text-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">%</span>
+
+              <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                <span className="text-sm font-medium text-on-surface">
+                  {feeType === 'FIXED' ? 'Fixed Fee per Booking' : 'Platform Fee Percentage'}
+                </span>
+
+                {feeType === 'FIXED' ? (
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">₹</span>
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={feeAmountForm} 
+                      onChange={e => setFeeAmountForm(e.target.value)} 
+                      required 
+                      className="w-28 pl-7 pr-3 py-2 rounded-xl bg-surface border border-border text-on-surface text-center font-bold text-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      min="0"
+                      max="100"
+                      value={feeForm} 
+                      onChange={e => setFeeForm(e.target.value)} 
+                      required 
+                      className="w-28 pl-3 pr-8 py-2 rounded-xl bg-surface border border-border text-on-surface text-center font-bold text-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">%</span>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -237,6 +323,88 @@ const CommissionsPage = () => {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">%</span>
               </div>
+            </div>
+
+            {/* ── Online Payment Cashback Settings ────────────────────────── */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/20 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px] text-primary">account_balance_wallet</span>
+                    Online Payment Cashback (Glentro Wallet)
+                  </h4>
+                  <p className="text-xs text-muted-text mt-0.5">
+                    Credit cashback to user wallet when they book using Online Payment (Razorpay)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCashbackPolicy(p => ({ ...p, enabled: !p.enabled }))}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    cashbackPolicy.enabled ? 'bg-primary' : 'bg-border'
+                  }`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    cashbackPolicy.enabled ? 'left-7' : 'left-1'
+                  }`} />
+                </button>
+              </div>
+
+              {cashbackPolicy.enabled && (
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pt-2 border-t border-primary/10">
+                  <div className="flex items-center bg-surface-variant p-1 rounded-xl border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setCashbackPolicy(p => ({ ...p, type: 'FIXED' }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        cashbackPolicy.type === 'FIXED'
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-muted-text hover:text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">currency_rupee</span>
+                      Fixed Rupee (₹)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCashbackPolicy(p => ({ ...p, type: 'PERCENTAGE' }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        cashbackPolicy.type === 'PERCENTAGE'
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-muted-text hover:text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">percent</span>
+                      Percentage (%)
+                    </button>
+                  </div>
+
+                  {cashbackPolicy.type === 'FIXED' ? (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={cashbackPolicy.amount}
+                        onChange={e => setCashbackPolicy(p => ({ ...p, amount: e.target.value }))}
+                        className="w-28 pl-7 pr-3 py-2 rounded-xl bg-surface border border-border text-on-surface text-center font-bold text-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={cashbackPolicy.percentage}
+                        onChange={e => setCashbackPolicy(p => ({ ...p, percentage: e.target.value }))}
+                        className="w-28 pl-3 pr-8 py-2 rounded-xl bg-surface border border-border text-on-surface text-center font-bold text-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">%</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── Call Policy ──────────────────────────────────────────────── */}

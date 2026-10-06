@@ -271,8 +271,41 @@ const getNearbySalons = async (req, res, next) => {
     }
 
     const salons = await Salon.find(query).skip((pageNum - 1) * limitNum).limit(limitNum);
-    const total = await Salon.countDocuments(query);
+
+    // MongoDB countDocuments uses an aggregation pipeline ($match + $group) under the hood.
+    // MongoDB prohibits $near and $nearSphere in aggregation pipelines because they enforce sorting.
+    // We use $geoWithin + $centerSphere for the count query to avoid this error.
+    const countQuery = { ...query };
+    countQuery.location = {
+      $geoWithin: {
+        $centerSphere: [
+          [parseFloat(lng), parseFloat(lat)],
+          maxDistanceInMeters / 6378137, // Radius in radians
+        ],
+      },
+    };
+    const total = await Salon.countDocuments(countQuery);
     const salonsWithPrices = await attachMinServicePrices(salons);
+
+    // Attach distance in kilometers to each salon in MongoDB fallback
+    const userLat = parseFloat(lat);
+    const userLng = parseFloat(lng);
+    const toRad = (val) => (val * Math.PI) / 180;
+    salonsWithPrices.forEach((s) => {
+      if (s.location && Array.isArray(s.location.coordinates) && s.location.coordinates.length === 2) {
+        const [sLng, sLat] = s.location.coordinates;
+        const dLat = toRad(sLat - userLat);
+        const dLon = toRad(sLng - userLng);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(userLat)) * Math.cos(toRad(sLat)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        s.distanceKm = parseFloat((6371 * c).toFixed(2));
+      } else {
+        s.distanceKm = null;
+      }
+    });
 
     res.json({
       success: true,

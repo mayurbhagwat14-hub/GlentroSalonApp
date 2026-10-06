@@ -121,6 +121,13 @@ const BookingDetailsModal = ({ booking, onClose }) => {
                 <span>Platform Fee</span>
                 <span>+ ₹{booking.platformFee || 0}</span>
               </div>
+
+              {booking.walletAmountApplied > 0 && (
+                <div className="flex justify-between font-body-sm text-[14px] text-primary">
+                  <span>Paid via Glentro Wallet</span>
+                  <span>- ₹{booking.walletAmountApplied}</span>
+                </div>
+              )}
               
               <div className="h-px bg-border my-2" />
               
@@ -128,6 +135,13 @@ const BookingDetailsModal = ({ booking, onClose }) => {
                 <span>Total Paid by Customer</span>
                 <span>₹{booking.finalAmount}</span>
               </div>
+
+              {booking.cashbackEarned > 0 && (
+                <div className="flex justify-between font-body-sm text-[13px] text-emerald-600 font-medium">
+                  <span>Online Cashback Given</span>
+                  <span>+ ₹{booking.cashbackEarned}</span>
+                </div>
+              )}
 
               <div className="h-px bg-border my-2" />
 

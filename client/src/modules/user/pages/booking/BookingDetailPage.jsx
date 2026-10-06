@@ -436,18 +436,24 @@ const BookingDetailPage = () => {
           {booking.platformFee > 0 && (
             <div className="flex justify-between text-text-secondary">
               <span>Platform Fee</span>
-              <span>{formatPaise(booking.platformFeeAmountPaise, booking.platformFee)}</span>
+              <span>{formatPaise(booking.platformFeePaise || booking.pricing?.platformFeePaise, booking.platformFee)}</span>
+            </div>
+          )}
+          {(booking.walletAmountApplied > 0 || booking.pricing?.walletAmountApplied > 0) && (
+            <div className="flex justify-between text-primary font-medium">
+              <span>Glentro Wallet Applied</span>
+              <span>-{formatPaise(booking.walletAmountAppliedPaise || booking.pricing?.walletAmountAppliedPaise, booking.walletAmountApplied)}</span>
             </div>
           )}
           {booking.cancellationFee > 0 && <div className="flex justify-between text-red-600"><span>Cancellation Fee</span><span>{formatPaise(booking.cancellationFeePaise, booking.cancellationFee)}</span></div>}
           <div className="flex justify-between font-bold text-lg pt-2 border-t border-primary-200"><span>Total</span><span className="text-primary-700">{formatPaise(booking.finalAmountPaise, booking.finalAmount)}</span></div>
-          {booking.pointsEarned > 0 && (
-            <div className="mt-2 bg-primary-50 rounded-lg p-2 flex justify-between items-center text-primary-700 font-medium">
+          {booking.cashbackEarned > 0 && (
+            <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 flex justify-between items-center text-emerald-800 font-medium">
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px]">stars</span>
-                <span>Reward Points</span>
+                <span className="material-symbols-outlined text-[18px] text-emerald-600">savings</span>
+                <span>Online Cashback Earned</span>
               </div>
-              <span>+{booking.pointsEarned}</span>
+              <span className="font-bold text-emerald-700">+{formatPaise(booking.cashbackEarnedPaise, booking.cashbackEarned)}</span>
             </div>
           )}
         </div>

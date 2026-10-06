@@ -111,9 +111,11 @@ const getPackages = async (req, res, next) => {
         isActive: true,
         isApproved: true,
         location: {
-          $nearSphere: {
-            $geometry: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
-            $maxDistance: maxDistanceInMeters,
+          $geoWithin: {
+            $centerSphere: [
+              [parseFloat(lng), parseFloat(lat)],
+              maxDistanceInMeters / 6378137,
+            ],
           },
         },
       }).select('_id');

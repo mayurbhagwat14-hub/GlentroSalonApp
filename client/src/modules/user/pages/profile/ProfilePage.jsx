@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
 import { useNotifications } from '../../../../context/NotificationContext';
 import { useLocationContext } from '../../../../context/LocationContext';
 import { updateProfile } from '../../../../services/api/authApi';
-import { initiateChat, deleteUserAccount } from '../../services/userApi';
+import { initiateChat, deleteUserAccount, getMyWallet } from '../../services/userApi';
 import Button from '../../../../components/common/Button';
 import Input from '../../../../components/common/Input';
 import PageHeader from '../../../../components/common/PageHeader';
@@ -25,6 +25,8 @@ const ProfilePage = () => {
   const [deleteReason, setDeleteReason] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [walletData, setWalletData] = useState(null);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -35,6 +37,19 @@ const ProfilePage = () => {
   const [avatarFile, setAvatarFile] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
+
+  useEffect(() => {
+    loadWallet();
+  }, []);
+
+  const loadWallet = async () => {
+    try {
+      const res = await getMyWallet();
+      setWalletData(res.data.data);
+    } catch (e) {
+      console.error('Failed to load wallet', e);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -174,7 +189,47 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          <div className="space-y-8 mt-8">
+          {/* Glentro Wallet Card */}
+          <div className="bg-gradient-to-r from-primary/10 via-accent/5 to-primary/5 rounded-[28px] p-5 sm:p-6 border border-primary/20 shadow-sm mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md shrink-0">
+                <span className="material-symbols-outlined text-[26px] sm:text-[30px]">account_balance_wallet</span>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-headline-sm text-[17px] font-bold text-on-surface">Glentro Wallet</h3>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    Online Cashback
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-2xl sm:text-3xl font-extrabold text-primary">
+                    ₹{(walletData?.wallet?.balance || 0).toFixed(2)}
+                  </span>
+                  <span className="text-xs text-muted-text">
+                    Available Balance
+                  </span>
+                </div>
+                {walletData?.wallet?.totalCashbackEarned > 0 && (
+                  <p className="text-xs text-muted-text mt-1 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px] text-emerald-600">savings</span>
+                    Total Cashback: ₹{(walletData.wallet.totalCashbackEarned || 0).toFixed(2)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              className="rounded-full text-xs font-semibold px-4 py-2 flex items-center gap-1.5 self-end sm:self-center"
+              onClick={() => setShowWalletModal(true)}
+            >
+              <span className="material-symbols-outlined text-[16px]">history</span>
+              Cashback History
+            </Button>
+          </div>
+
+          <div className="space-y-8 mt-6">
             {/* My Activity Section */}
             <section>
               <h2 className="font-headline-sm text-lg text-on-surface font-semibold mb-4 px-1">My Activity</h2>
@@ -461,6 +516,62 @@ const ProfilePage = () => {
               >
                 Delete Account
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Glentro Wallet Transactions Modal */}
+      {showWalletModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-surface rounded-3xl border border-border shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+                </div>
+                <div>
+                  <h3 className="font-headline-sm text-base font-bold text-on-surface">Glentro Wallet History</h3>
+                  <p className="text-xs text-muted-text">Balance: ₹{(walletData?.wallet?.balance || 0).toFixed(2)}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowWalletModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-surface-variant flex items-center justify-center text-muted-text"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto flex-1 space-y-3">
+              {walletData?.history?.transactions?.length > 0 ? (
+                walletData.history.transactions.map((txn) => (
+                  <div key={txn._id} className="p-3.5 rounded-2xl bg-surface-variant/40 border border-border/60 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        txn.type === 'CREDIT' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'
+                      }`}>
+                        <span className="material-symbols-outlined text-[20px]">
+                          {txn.type === 'CREDIT' ? 'arrow_downward' : 'arrow_upward'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-on-surface">{txn.description || 'Wallet transaction'}</p>
+                        <p className="text-[11px] text-muted-text">{new Date(txn.createdAt).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <span className={`font-bold text-sm ${txn.type === 'CREDIT' ? 'text-emerald-600' : 'text-red-500'}`}>
+                      {txn.type === 'CREDIT' ? '+' : '-'}₹{(txn.amount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="py-12 text-center text-muted-text">
+                  <span className="material-symbols-outlined text-4xl mb-2 text-muted-text/50">receipt_long</span>
+                  <p className="text-sm">No wallet transactions yet.</p>
+                  <p className="text-xs mt-1">Book online with Razorpay to earn cashback!</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

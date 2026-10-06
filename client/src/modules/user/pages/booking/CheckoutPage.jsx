@@ -44,14 +44,15 @@ const CheckoutPage = () => {
   // Preview State (Source of Truth for Frontend)
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(true);
+  const [useWallet, setUseWallet] = useState(false);
 
   useEffect(() => {
     if (salon && date && time && selectedServices.length > 0) {
-      loadPreview();
+      loadPreview('', false);
     }
   }, []);
 
-  const loadPreview = async (appliedCouponCode = '') => {
+  const loadPreview = async (appliedCouponCode = '', walletActive = useWallet) => {
     // If user not logged in, don't make the API call (would get 401)
     if (!user) {
       setPreviewLoading(false);
@@ -67,7 +68,8 @@ const CheckoutPage = () => {
           staff: serviceStaff[s._id] || null
         })),
         couponCode: appliedCouponCode || couponCode,
-        ...(packageId && { packageId })
+        ...(packageId && { packageId }),
+        useWallet: walletActive,
       };
       const res = await previewBookingTotal(payload);
       setPreviewData(res.data.data);
@@ -139,6 +141,7 @@ const CheckoutPage = () => {
         paymentMethod: paymentMethod === 'ONLINE' ? 'ONLINE' : 'CASH',
         ...(previewData?.coupon && { couponCode: previewData.coupon.code }),
         ...(packageId && { packageId }),
+        useWallet,
       };
 
       const res = await createBooking(bookingData);
@@ -357,10 +360,19 @@ const CheckoutPage = () => {
                   <span className="font-body-md text-[16px]">-{formatPaise(previewData.couponDiscountPaise)}</span>
                 </div>
               )}
-              {previewData.platformFeePercentage > 0 && (
+              {previewData.platformFeeAmountPaise > 0 && (
                 <div className="flex justify-between items-center">
                   <span className="font-body-md text-[16px] text-muted-text">Platform Fee</span>
                   <span className="font-body-md text-[16px] text-on-surface">{formatPaise(previewData.platformFeeAmountPaise)}</span>
+                </div>
+              )}
+              {previewData.wallet?.appliedPaise > 0 && (
+                <div className="flex justify-between items-center text-primary font-medium">
+                  <span className="font-body-md text-[16px] flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                    Glentro Wallet Applied
+                  </span>
+                  <span className="font-body-md text-[16px]">-{formatPaise(previewData.wallet.appliedPaise)}</span>
                 </div>
               )}
               <div className="h-[1px] w-full bg-border my-2"></div>
@@ -372,27 +384,67 @@ const CheckoutPage = () => {
           )}
         </section>
 
+        {/* Glentro Wallet Card */}
+        {previewData?.wallet?.canApply && (
+          <section className="bg-surface rounded-[18px] border border-border shadow-sm p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <span className="material-symbols-outlined text-[22px]">account_balance_wallet</span>
+              </div>
+              <div>
+                <span className="font-body-md font-semibold text-on-surface block">Glentro Wallet Balance</span>
+                <span className="text-xs text-muted-text">
+                  Available: ₹{previewData.wallet.availableBalance.toFixed(2)}
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const next = !useWallet;
+                setUseWallet(next);
+                loadPreview(couponCode, next);
+              }}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                useWallet ? 'bg-primary' : 'bg-border'
+              }`}
+            >
+              <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                useWallet ? 'left-7' : 'left-1'
+              }`} />
+            </button>
+          </section>
+        )}
+
         {/* Payment Method */}
         <section className="bg-surface rounded-[18px] border border-border shadow-sm p-5 flex flex-col gap-4">
           <h3 className="font-label-md text-[14px] text-muted-text uppercase tracking-wider">Payment Method</h3>
           <div className="flex flex-col gap-3">
-            <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-variant'}`}>
-              <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'ONLINE' ? 'border-primary' : 'border-on-surface-variant'}`}>
+            <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${paymentMethod === 'ONLINE' ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-variant'}`}>
+              <div className={`w-5 h-5 rounded-full border flex items-center justify-center mt-0.5 shrink-0 ${paymentMethod === 'ONLINE' ? 'border-primary' : 'border-on-surface-variant'}`}>
                 {paymentMethod === 'ONLINE' && <div className="w-3 h-3 rounded-full bg-primary"></div>}
               </div>
               <input type="radio" name="payment" value="ONLINE" checked={paymentMethod === 'ONLINE'} onChange={() => setPaymentMethod('ONLINE')} className="hidden" />
-              <div className="flex flex-col">
-                <span className="font-body-md text-on-surface">Pay Online (Razorpay)</span>
+              <div className="flex flex-col flex-1">
+                <span className="font-body-md text-on-surface font-medium">Pay Online (Razorpay)</span>
                 <span className="font-body-sm text-muted-text text-[12px]">Credit/Debit Cards, UPI, NetBanking</span>
+                {previewData?.onlineCashback?.enabled && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold w-fit">
+                    <span className="material-symbols-outlined text-[15px] text-emerald-600">savings</span>
+                    <span>
+                      Get {previewData.onlineCashback.type === 'FIXED' ? `₹${previewData.onlineCashback.amount}` : `${previewData.onlineCashback.percentage}%`} Cashback in your Glentro Wallet!
+                    </span>
+                  </div>
+                )}
               </div>
             </label>
             <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${paymentMethod === 'CASH' ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-variant'}`}>
-              <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${paymentMethod === 'CASH' ? 'border-primary' : 'border-on-surface-variant'}`}>
+              <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${paymentMethod === 'CASH' ? 'border-primary' : 'border-on-surface-variant'}`}>
                 {paymentMethod === 'CASH' && <div className="w-3 h-3 rounded-full bg-primary"></div>}
               </div>
               <input type="radio" name="payment" value="CASH" checked={paymentMethod === 'CASH'} onChange={() => setPaymentMethod('CASH')} className="hidden" />
               <div className="flex flex-col">
-                <span className="font-body-md text-on-surface">Pay at Salon (Cash)</span>
+                <span className="font-body-md text-on-surface font-medium">Pay at Salon (Cash)</span>
                 <span className="font-body-sm text-muted-text text-[12px]">Pay by cash or card after service</span>
               </div>
             </label>

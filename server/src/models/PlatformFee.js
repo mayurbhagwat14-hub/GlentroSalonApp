@@ -2,12 +2,45 @@ const mongoose = require('mongoose');
 
 const platformFeeSchema = new mongoose.Schema(
   {
+    feeType: {
+      type: String,
+      enum: ['PERCENTAGE', 'FIXED'],
+      default: 'PERCENTAGE',
+    },
     feePercentage: {
       type: Number,
       required: true,
       default: 5,
       min: 0,
       max: 100,
+    },
+    // Used when feeType is 'FIXED' (in INR, e.g. ₹30)
+    feeAmount: {
+      type: Number,
+      default: 30,
+      min: 0,
+    },
+    // ─── Online Payment Cashback ──────────────────────────────────────────────
+    onlineCashbackEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    cashbackType: {
+      type: String,
+      enum: ['PERCENTAGE', 'FIXED'],
+      default: 'FIXED',
+    },
+    cashbackPercentage: {
+      type: Number,
+      default: 5,
+      min: 0,
+      max: 100,
+    },
+    // Used when cashbackType is 'FIXED' (in INR, e.g. ₹20)
+    cashbackAmount: {
+      type: Number,
+      default: 20,
+      min: 0,
     },
     adminCommissionPercentage: {
       type: Number,

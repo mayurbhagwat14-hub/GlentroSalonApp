@@ -85,7 +85,13 @@ const createRazorpayOrder = async (bookingId, userId) => {
     receipt: `booking_${booking._id}`,
   };
 
-  const order = await razorpay.orders.create(options);
+  let order;
+  try {
+    order = await razorpay.orders.create(options);
+  } catch (rpErr) {
+    const errorDetail = rpErr?.error?.description || rpErr?.message || 'Razorpay order creation failed';
+    throw new Error(`Razorpay Error: ${errorDetail}`);
+  }
 
   // Save order ID on booking for reconciliation
   booking.razorpayOrderId = order.id;
@@ -198,6 +204,21 @@ const verifyAndRecordPayment = async ({
       });
     }
 
+    // 5c. Credit user wallet with online cashback if eligible
+    const userCashbackPaise = booking.cashbackEarnedPaise || 0;
+    let newCashbackStatus = booking.cashbackStatus;
+    if (userCashbackPaise > 0) {
+      const userWalletService = require('./userWalletService');
+      await userWalletService.creditCashback({
+        userId: booking.user,
+        bookingId: booking._id,
+        amountPaise: userCashbackPaise,
+        description: `Cashback for online payment (Booking #${booking._id})`,
+        session,
+      });
+      newCashbackStatus = 'CREDITED';
+    }
+
     // 6. Update booking — PAID → CONFIRMED per business rules
     await Booking.findByIdAndUpdate(
       bookingId,
@@ -206,6 +227,7 @@ const verifyAndRecordPayment = async ({
         razorpayPaymentId: razorpay_payment_id,
         status: 'CONFIRMED',
         paymentTransactionId: transaction._id,
+        cashbackStatus: newCashbackStatus,
       },
       { session, new: true }
     );

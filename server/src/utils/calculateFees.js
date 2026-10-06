@@ -54,7 +54,7 @@ const calculateCancellationFee = async (booking) => {
  * @param {number} platformFeePercentage - Percentage
  * @returns {Object} Financial breakdown in paise
  */
-const calculateBookingTotal = (services, coupon = null, pkg = null, platformFeePercentage = 0) => {
+const calculateBookingTotal = (services, coupon = null, pkg = null, platformFeeParam = 0, walletAppliedPaise = 0) => {
   // 1. Calculate original total from services
   // If pricePaise is missing, fallback to price * 100 for backward compatibility during migration
   const originalTotalPaise = services.reduce((sum, s) => sum + (s.pricePaise !== undefined ? s.pricePaise : Math.round((s.price || 0) * 100)), 0);
@@ -95,11 +95,29 @@ const calculateBookingTotal = (services, coupon = null, pkg = null, platformFeeP
   const subtotalAfterDiscountsPaise = baseAmountPaise - couponDiscountPaise;
   const totalDiscountPaise = packageDiscountPaise + couponDiscountPaise;
 
-  // 4. Calculate Platform Fee
-  const platformFeeAmountPaise = calculatePercentagePaise(subtotalAfterDiscountsPaise, platformFeePercentage);
+  // 4. Calculate Platform Fee (Fixed ₹ vs Percentage %)
+  let feeType = 'PERCENTAGE';
+  let feePercentage = 0;
+  let feeAmount = 0;
+  if (typeof platformFeeParam === 'object' && platformFeeParam !== null) {
+    feeType = platformFeeParam.feeType || 'PERCENTAGE';
+    feePercentage = Number(platformFeeParam.feePercentage || 0);
+    feeAmount = Number(platformFeeParam.feeAmount || 0);
+  } else {
+    feePercentage = Number(platformFeeParam || 0);
+  }
+
+  let platformFeeAmountPaise = 0;
+  if (feeType === 'FIXED') {
+    platformFeeAmountPaise = Math.round(feeAmount * 100);
+  } else {
+    platformFeeAmountPaise = calculatePercentagePaise(subtotalAfterDiscountsPaise, feePercentage);
+  }
   
-  // 5. Calculate raw final amount
-  const rawFinalAmountPaise = subtotalAfterDiscountsPaise + platformFeeAmountPaise;
+  // 5. Apply wallet balance deduction if requested
+  const rawBeforeWalletPaise = subtotalAfterDiscountsPaise + platformFeeAmountPaise;
+  const actualWalletDeductedPaise = Math.min(walletAppliedPaise || 0, rawBeforeWalletPaise);
+  const rawFinalAmountPaise = Math.max(0, rawBeforeWalletPaise - actualWalletDeductedPaise);
 
   // 6. Apply Final Customer Rounding Business Rule (Round to nearest whole Rupee)
   const finalAmountPaise = roundToNearestRupeePaise(rawFinalAmountPaise);
@@ -110,8 +128,11 @@ const calculateBookingTotal = (services, coupon = null, pkg = null, platformFeeP
     discountAmountPaise: totalDiscountPaise,
     couponDiscountPaise,
     packageDiscountPaise,
-    platformFeePercentage,
+    platformFeeType: feeType,
+    platformFeePercentage: feePercentage,
+    platformFeeAmount: feeAmount,
     platformFeeAmountPaise,
+    walletAppliedPaise: actualWalletDeductedPaise,
     finalAmountPaise, // Authoritative final payable amount
   };
 };
@@ -128,7 +149,9 @@ const calculateFinancialBreakdown = async (vendor, subtotalAfterDiscountsPaise, 
   const platformFeeDoc = await PlatformFee.findOne({ isActive: true });
   
   const platformFeePercentage = platformFeeDoc ? platformFeeDoc.feePercentage : 5;
-  const platformFeePaise = precalculatedPlatformFeePaise || calculatePercentagePaise(subtotalAfterDiscountsPaise, platformFeePercentage);
+  const platformFeePaise = (precalculatedPlatformFeePaise !== undefined && precalculatedPlatformFeePaise !== null)
+    ? precalculatedPlatformFeePaise
+    : (platformFeeDoc?.feeType === 'FIXED' ? Math.round((platformFeeDoc.feeAmount || 0) * 100) : calculatePercentagePaise(subtotalAfterDiscountsPaise, platformFeePercentage));
 
   const globalAdminCommission = platformFeeDoc && platformFeeDoc.adminCommissionPercentage !== undefined ? platformFeeDoc.adminCommissionPercentage : 10;
 

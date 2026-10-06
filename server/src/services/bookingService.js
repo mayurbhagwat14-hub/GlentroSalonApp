@@ -16,7 +16,7 @@ const { acquireMultiServiceLocks, releaseSlotLocks } = require('./slotLockServic
  * Create a new booking with multiple services
  * Handles staff auto-assignment, conflict prevention, and financial calculations
  */
-const createBooking = async ({ userId, salonId, services, bookingDate, startTime, couponCode, paymentMethod, packageId }) => {
+const createBooking = async ({ userId, salonId, services, bookingDate, startTime, couponCode, paymentMethod, packageId, useWallet = false }) => {
   let acquiredLockKeys = [];
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -227,9 +227,21 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
 
     // Fetch Platform Fee configuration
     const platformFeeDoc = await PlatformFee.findOne({ isActive: true });
-    const currentPlatformFeePercentage = platformFeeDoc ? platformFeeDoc.feePercentage : 5;
+    const platformFeeConfig = platformFeeDoc ? {
+      feeType: platformFeeDoc.feeType || 'PERCENTAGE',
+      feePercentage: platformFeeDoc.feePercentage !== undefined ? platformFeeDoc.feePercentage : 5,
+      feeAmount: platformFeeDoc.feeAmount !== undefined ? platformFeeDoc.feeAmount : 30,
+    } : { feeType: 'PERCENTAGE', feePercentage: 5, feeAmount: 30 };
 
-    // Calculate totals including platform fee
+    // Check user wallet if useWallet requested
+    let userWalletBalancePaise = 0;
+    if (useWallet) {
+      const UserWallet = require('../models/UserWallet');
+      const userWallet = await UserWallet.findOne({ user: userId }).session(session);
+      userWalletBalancePaise = userWallet?.balancePaise || 0;
+    }
+
+    // Calculate totals including platform fee & wallet
     const {
       totalAmountPaise,
       subtotalAfterDiscountsPaise,
@@ -239,12 +251,38 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
       couponDiscountPaise,
       platformFeeAmountPaise,
       platformFeePercentage,
+      platformFeeType,
+      walletAppliedPaise,
     } = calculateBookingTotal(
       bookingServices,
       coupon,
       pkg,
-      currentPlatformFeePercentage
+      platformFeeConfig,
+      userWalletBalancePaise
     );
+
+    // Apply wallet deduction atomically if any balance applied
+    if (walletAppliedPaise > 0) {
+      const userWalletService = require('./userWalletService');
+      await userWalletService.debitWallet({
+        userId,
+        amountPaise: walletAppliedPaise,
+        description: `Glentro Wallet applied on booking payment`,
+        session,
+      });
+    }
+
+    // Calculate Online Cashback if applicable
+    const normalizedPaymentMethod = ['ONLINE', 'online'].includes(paymentMethod) ? 'ONLINE' : 'CASH';
+    let cashbackPaise = 0;
+    if (normalizedPaymentMethod === 'ONLINE' && platformFeeDoc?.onlineCashbackEnabled) {
+      if (platformFeeDoc.cashbackType === 'FIXED') {
+        cashbackPaise = Math.round((platformFeeDoc.cashbackAmount || 0) * 100);
+      } else {
+        const { calculatePercentagePaise } = require('../utils/money');
+        cashbackPaise = calculatePercentagePaise(subtotalAfterDiscountsPaise, platformFeeDoc.cashbackPercentage || 0);
+      }
+    }
 
     const pointsEarned = 0; // Not implemented yet
     const pointsCalculationAmount = 0;
@@ -277,6 +315,12 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
           platformFeePaise: financials.platformFeePaise,
           vendorPayoutPaise: financials.vendorPayoutPaise,
 
+          walletAmountApplied: walletAppliedPaise / 100,
+          walletAmountAppliedPaise: walletAppliedPaise,
+          cashbackEarned: cashbackPaise / 100,
+          cashbackEarnedPaise: cashbackPaise,
+          cashbackStatus: (cashbackPaise > 0) ? 'PENDING' : 'NONE',
+
           pointsEarned,
           pointsCalculationAmount,
           coupon: coupon ? coupon._id : undefined,
@@ -288,7 +332,7 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
             offerPrice: pkg.discountedPrice,
             discount: packageDiscountPaise / 100, // Legacy display
           } : undefined,
-          paymentMethod: ['ONLINE', 'online'].includes(paymentMethod) ? 'ONLINE' : 'CASH',
+          paymentMethod: normalizedPaymentMethod,
 
           platformFeePercentage: financials.platformFeePercentage,
           adminCommissionPercentage: financials.adminCommissionPercentage,
@@ -306,6 +350,7 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
             grossAmountPaise: subtotalAfterDiscountsPaise,
             platformFee: platformFeeAmountPaise / 100,
             platformFeePaise: platformFeeAmountPaise,
+            platformFeeType: platformFeeType || 'PERCENTAGE',
             commissionAmount: financials.commissionPaise / 100,
             commissionAmountPaise: financials.commissionPaise,
             finalAmount: finalAmountPaise / 100,
@@ -317,6 +362,10 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
             platformFeePercentage: financials.platformFeePercentage,
             commissionPercentage: financials.adminCommissionPercentage,
             vendorPlanType: financials.vendorPlanType,
+            walletAmountApplied: walletAppliedPaise / 100,
+            walletAmountAppliedPaise: walletAppliedPaise,
+            cashbackEarned: cashbackPaise / 100,
+            cashbackEarnedPaise: cashbackPaise,
           }
         },
       ],
@@ -677,7 +726,7 @@ const completeBooking = async (bookingId, actorId, role, otp) => {
   return booking;
 };
 
-const previewBookingTotal = async ({ salonId, services, couponCode, packageId }) => {
+const previewBookingTotal = async ({ userId = null, salonId, services, couponCode, packageId, useWallet = false }) => {
   const salon = await Salon.findById(salonId);
   if (!salon) throw new Error('Salon not found');
 
@@ -709,7 +758,21 @@ const previewBookingTotal = async ({ salonId, services, couponCode, packageId })
 
   const PlatformFee = require('../models/PlatformFee');
   const platformFeeDoc = await PlatformFee.findOne({ isActive: true });
-  const currentPlatformFeePercentage = platformFeeDoc ? platformFeeDoc.feePercentage : 5;
+  const platformFeeConfig = platformFeeDoc ? {
+    feeType: platformFeeDoc.feeType || 'PERCENTAGE',
+    feePercentage: platformFeeDoc.feePercentage !== undefined ? platformFeeDoc.feePercentage : 5,
+    feeAmount: platformFeeDoc.feeAmount !== undefined ? platformFeeDoc.feeAmount : 30,
+  } : { feeType: 'PERCENTAGE', feePercentage: 5, feeAmount: 30 };
+
+  // Check user wallet if userId provided
+  let userWalletBalancePaise = 0;
+  if (userId) {
+    const UserWallet = require('../models/UserWallet');
+    const userWallet = await UserWallet.findOne({ user: userId });
+    userWalletBalancePaise = userWallet?.balancePaise || 0;
+  }
+
+  const walletToApplyPaise = useWallet ? userWalletBalancePaise : 0;
 
   const {
     totalAmountPaise,
@@ -718,14 +781,34 @@ const previewBookingTotal = async ({ salonId, services, couponCode, packageId })
     finalAmountPaise,
     packageDiscountPaise,
     couponDiscountPaise,
+    platformFeeType,
     platformFeeAmountPaise,
     platformFeePercentage,
+    platformFeeAmount,
+    walletAppliedPaise,
   } = calculateBookingTotal(
     bookingServices,
     coupon,
     pkg,
-    currentPlatformFeePercentage
+    platformFeeConfig,
+    walletToApplyPaise
   );
+
+  // Online Cashback calculation
+  let potentialCashbackPaise = 0;
+  const cashbackEnabled = Boolean(platformFeeDoc?.onlineCashbackEnabled);
+  const cashbackType = platformFeeDoc?.cashbackType || 'FIXED';
+  const cashbackPercentage = platformFeeDoc?.cashbackPercentage || 5;
+  const cashbackAmount = platformFeeDoc?.cashbackAmount !== undefined ? platformFeeDoc.cashbackAmount : 20;
+
+  if (cashbackEnabled) {
+    if (cashbackType === 'FIXED') {
+      potentialCashbackPaise = Math.round(cashbackAmount * 100);
+    } else {
+      const { calculatePercentagePaise } = require('../utils/money');
+      potentialCashbackPaise = calculatePercentagePaise(subtotalAfterDiscountsPaise, cashbackPercentage);
+    }
+  }
 
   return {
     totalAmountPaise,
@@ -734,8 +817,25 @@ const previewBookingTotal = async ({ salonId, services, couponCode, packageId })
     finalAmountPaise,
     packageDiscountPaise,
     couponDiscountPaise,
+    platformFeeType,
     platformFeeAmountPaise,
     platformFeePercentage,
+    platformFeeAmount,
+    wallet: {
+      availableBalancePaise: userWalletBalancePaise,
+      availableBalance: userWalletBalancePaise / 100,
+      appliedPaise: walletAppliedPaise,
+      applied: walletAppliedPaise / 100,
+      canApply: userWalletBalancePaise > 0,
+    },
+    onlineCashback: {
+      enabled: cashbackEnabled,
+      type: cashbackType,
+      percentage: cashbackPercentage,
+      amount: cashbackAmount,
+      potentialCashbackPaise,
+      potentialCashback: potentialCashbackPaise / 100,
+    },
     coupon: coupon ? { code: coupon.code, discountValuePaise: coupon.discountValuePaise, discountType: coupon.discountType } : null,
     package: pkg ? { name: pkg.name } : null
   };

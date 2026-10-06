@@ -73,13 +73,25 @@ const getPublicPlatformFee = async (req, res, next) => {
   try {
     let fee = await PlatformFee.findOne({ isActive: true });
     if (!fee) {
-      fee = await PlatformFee.create({ feePercentage: 5, cancellationFeePercentage: 25, adminCommissionPercentage: 10 });
+      fee = await PlatformFee.create({
+        feeType: 'PERCENTAGE',
+        feePercentage: 5,
+        feeAmount: 30,
+        cancellationFeePercentage: 25,
+        adminCommissionPercentage: 10,
+      });
     }
     // Only expose public-safe fields (no internal financials)
     res.json({
       success: true,
       data: {
+        feeType: fee.feeType || 'PERCENTAGE',
         feePercentage: fee.feePercentage,
+        feeAmount: fee.feeAmount !== undefined ? fee.feeAmount : 30,
+        onlineCashbackEnabled: fee.onlineCashbackEnabled || false,
+        cashbackType: fee.cashbackType || 'FIXED',
+        cashbackPercentage: fee.cashbackPercentage || 5,
+        cashbackAmount: fee.cashbackAmount !== undefined ? fee.cashbackAmount : 20,
         callEnabled: fee.callEnabled,
         callWindowMinutes: fee.callWindowMinutes,
         cancellationChargeEnabled: fee.cancellationChargeEnabled,
@@ -95,7 +107,9 @@ const getPublicPlatformFee = async (req, res, next) => {
 const updatePlatformFee = async (req, res, next) => {
   try {
     const {
-      feePercentage, cancellationFeePercentage, adminCommissionPercentage,
+      feeType, feePercentage, feeAmount,
+      onlineCashbackEnabled, cashbackType, cashbackPercentage, cashbackAmount,
+      cancellationFeePercentage, adminCommissionPercentage,
       // New call policy fields
       callEnabled, callWindowMinutes,
       // New cancellation policy fields
@@ -105,7 +119,13 @@ const updatePlatformFee = async (req, res, next) => {
 
     let fee = await PlatformFee.findOne({ isActive: true });
     if (fee) {
+      if (feeType !== undefined) fee.feeType = feeType;
       if (feePercentage !== undefined) fee.feePercentage = feePercentage;
+      if (feeAmount !== undefined) fee.feeAmount = feeAmount;
+      if (onlineCashbackEnabled !== undefined) fee.onlineCashbackEnabled = onlineCashbackEnabled;
+      if (cashbackType !== undefined) fee.cashbackType = cashbackType;
+      if (cashbackPercentage !== undefined) fee.cashbackPercentage = cashbackPercentage;
+      if (cashbackAmount !== undefined) fee.cashbackAmount = cashbackAmount;
       if (cancellationFeePercentage !== undefined) fee.cancellationFeePercentage = cancellationFeePercentage;
       if (adminCommissionPercentage !== undefined) fee.adminCommissionPercentage = adminCommissionPercentage;
       // Call policy
@@ -120,7 +140,13 @@ const updatePlatformFee = async (req, res, next) => {
       await fee.save();
     } else {
       fee = await PlatformFee.create({
-        feePercentage: feePercentage || 5,
+        feeType: feeType || 'PERCENTAGE',
+        feePercentage: feePercentage !== undefined ? feePercentage : 5,
+        feeAmount: feeAmount !== undefined ? feeAmount : 30,
+        onlineCashbackEnabled: onlineCashbackEnabled !== undefined ? onlineCashbackEnabled : false,
+        cashbackType: cashbackType || 'FIXED',
+        cashbackPercentage: cashbackPercentage !== undefined ? cashbackPercentage : 5,
+        cashbackAmount: cashbackAmount !== undefined ? cashbackAmount : 20,
         cancellationFeePercentage: cancellationFeePercentage || 25,
         adminCommissionPercentage: adminCommissionPercentage || 10,
         callEnabled: callEnabled !== undefined ? callEnabled : true,
