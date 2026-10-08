@@ -126,13 +126,7 @@ const updateFcmToken = async (req, res, next) => {
       return [];
     };
 
-    if (rawWebToken !== undefined) {
-      const tokens = toTokenArray(rawWebToken);
-      if (tokens.length > 0) {
-        updateOps.$addToSet = updateOps.$addToSet || {};
-        updateOps.$addToSet.fcmtoken = { $each: tokens };
-      }
-    }
+    const isMobile = ['android', 'ios', 'mobile'].includes(platform);
 
     if (rawMobileToken !== undefined) {
       const tokens = toTokenArray(rawMobileToken);
@@ -142,12 +136,19 @@ const updateFcmToken = async (req, res, next) => {
       }
     }
 
-    // Support legacy payload: { token: '...', platform: 'web'|'android'|'ios' }
+    if (rawWebToken !== undefined) {
+      const tokens = toTokenArray(rawWebToken);
+      if (tokens.length > 0) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        const targetField = isMobile ? 'fcmtokenmobile' : 'fcmtoken';
+        updateOps.$addToSet[targetField] = { $each: tokens };
+      }
+    }
+
     if (legacyToken !== undefined && rawWebToken === undefined && rawMobileToken === undefined) {
       const tokens = toTokenArray(legacyToken);
       if (tokens.length > 0) {
         updateOps.$addToSet = updateOps.$addToSet || {};
-        const isMobile = ['android', 'ios', 'mobile'].includes(platform);
         const targetField = isMobile ? 'fcmtokenmobile' : 'fcmtoken';
         updateOps.$addToSet[targetField] = { $each: tokens };
       }
@@ -196,10 +197,6 @@ const deleteAccount = async (req, res, next) => {
       reason: reason || null
     };
 
-    // Note: We don't change recoverAccount here because they might have previously 
-    // recovered and deleted again, or they might request recovery later. 
-    // Wait, if they had a previous recovery request that was rejected, should we clear it? 
-    // Better to clear `recoverAccount` to reset state.
     user.recoverAccount = {
       requestedAt: null,
       reason: null,
@@ -209,9 +206,6 @@ const deleteAccount = async (req, res, next) => {
 
     await user.save();
 
-    // In a real production app, we would also clear active sessions, tokens, etc.
-    // For JWT based flow without token blacklisting, the frontend clearing token is sufficient.
-    // If we have FCM tokens, we might want to clear it so we don't send notifications to deleted users.
     await User.findByIdAndUpdate(req.user.id, { fcmtoken: [], fcmtokenmobile: [] });
 
     res.json({
@@ -231,27 +225,20 @@ const removeFcmToken = async (req, res, next) => {
     const rawMobileToken = req.body.fcmtokenmobile !== undefined ? req.body.fcmtokenmobile : undefined;
     const legacyToken = req.body.token !== undefined ? req.body.token : req.body.fcmToken;
     const platform = (req.body.platform || '').toLowerCase();
+    const isMobile = ['android', 'ios', 'mobile'].includes(platform);
 
     const pullOps = {};
 
-    if (rawWebToken) {
+    const targetToken = String(rawWebToken || rawMobileToken || legacyToken || '').trim();
+    if (targetToken) {
       pullOps.$pull = pullOps.$pull || {};
-      pullOps.$pull.fcmtoken = String(rawWebToken).trim();
-    }
-    if (rawMobileToken) {
-      pullOps.$pull = pullOps.$pull || {};
-      pullOps.$pull.fcmtokenmobile = String(rawMobileToken).trim();
-    }
-    if (legacyToken && !rawWebToken && !rawMobileToken) {
-      pullOps.$pull = pullOps.$pull || {};
-      const tokenStr = String(legacyToken).trim();
-      if (['android', 'ios', 'mobile'].includes(platform)) {
-        pullOps.$pull.fcmtokenmobile = tokenStr;
+      if (isMobile) {
+        pullOps.$pull.fcmtokenmobile = targetToken;
       } else if (platform === 'web') {
-        pullOps.$pull.fcmtoken = tokenStr;
+        pullOps.$pull.fcmtoken = targetToken;
       } else {
-        pullOps.$pull.fcmtoken = tokenStr;
-        pullOps.$pull.fcmtokenmobile = tokenStr;
+        pullOps.$pull.fcmtoken = targetToken;
+        pullOps.$pull.fcmtokenmobile = targetToken;
       }
     }
 

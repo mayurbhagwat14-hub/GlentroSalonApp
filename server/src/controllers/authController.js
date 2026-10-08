@@ -15,14 +15,9 @@ const saveFcmTokenToDoc = async (modelInstance, body) => {
       return [];
     };
 
+    const isMobile = ['android', 'ios', 'mobile'].includes(platform);
     const updateOps = {};
-    if (rawWebToken !== undefined) {
-      const tokens = toTokenArray(rawWebToken);
-      if (tokens.length) {
-        updateOps.$addToSet = updateOps.$addToSet || {};
-        updateOps.$addToSet.fcmtoken = { $each: tokens };
-      }
-    }
+
     if (rawMobileToken !== undefined) {
       const tokens = toTokenArray(rawMobileToken);
       if (tokens.length) {
@@ -30,12 +25,21 @@ const saveFcmTokenToDoc = async (modelInstance, body) => {
         updateOps.$addToSet.fcmtokenmobile = { $each: tokens };
       }
     }
+
+    if (rawWebToken !== undefined) {
+      const tokens = toTokenArray(rawWebToken);
+      if (tokens.length) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        const targetField = isMobile ? 'fcmtokenmobile' : 'fcmtoken';
+        updateOps.$addToSet[targetField] = { $each: tokens };
+      }
+    }
+
     if (legacyToken !== undefined && rawWebToken === undefined && rawMobileToken === undefined) {
       const tokens = toTokenArray(legacyToken);
       if (tokens.length) {
-        const isMobile = ['android', 'ios', 'mobile'].includes(platform);
-        const targetField = isMobile ? 'fcmtokenmobile' : 'fcmtoken';
         updateOps.$addToSet = updateOps.$addToSet || {};
+        const targetField = isMobile ? 'fcmtokenmobile' : 'fcmtoken';
         updateOps.$addToSet[targetField] = { $each: tokens };
       }
     }

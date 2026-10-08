@@ -26,7 +26,12 @@ const LoginPage = () => {
     setLoading(true);
     setError('');
     try {
-      const res = await loginVendor(formData);
+      const savedToken = localStorage.getItem('glentro_fcm_token');
+      const payload = { ...formData, platform: 'web' };
+      if (savedToken) {
+        payload.fcmtoken = savedToken;
+      }
+      const res = await loginVendor(payload);
       setAuth('vendor', res.data.data.vendor, res.data.data.token);
       navigate('/vendor');
     } catch (err) {

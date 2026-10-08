@@ -39,7 +39,12 @@ const RegisterPage = () => {
     setError('');
     
     try {
-      const res = await registerUser(formData);
+      const savedToken = localStorage.getItem('glentro_fcm_token');
+      const payload = { ...formData, platform: 'web' };
+      if (savedToken) {
+        payload.fcmtoken = savedToken;
+      }
+      const res = await registerUser(payload);
       setAuth('user', res.data.data.user, res.data.data.token);
       
       const pendingBookingStr = sessionStorage.getItem('pendingBooking');

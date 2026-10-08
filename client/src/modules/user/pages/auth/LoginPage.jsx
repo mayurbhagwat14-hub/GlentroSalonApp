@@ -46,7 +46,12 @@ const LoginPage = () => {
     setError('');
     setSuccess('');
     try {
-      const res = await loginUser(formData);
+      const savedToken = localStorage.getItem('glentro_fcm_token');
+      const payload = { ...formData, platform: 'web' };
+      if (savedToken) {
+        payload.fcmtoken = savedToken;
+      }
+      const res = await loginUser(payload);
       setAuth('user', res.data.data.user, res.data.data.token);
 
       // Check if user was redirected from booking page (date/time selection)

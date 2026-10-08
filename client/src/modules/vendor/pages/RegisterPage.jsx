@@ -52,7 +52,12 @@ const RegisterPage = () => {
     setError('');
     try {
       const { confirmPassword, ...data } = formData;
-      const res = await registerVendor(data);
+      const savedToken = localStorage.getItem('glentro_fcm_token');
+      const payload = { ...data, platform: 'web' };
+      if (savedToken) {
+        payload.fcmtoken = savedToken;
+      }
+      const res = await registerVendor(payload);
       setAuth('vendor', res.data.data.vendor, res.data.data.token);
       navigate('/vendor');
     } catch (err) {

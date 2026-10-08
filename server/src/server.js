@@ -1,6 +1,6 @@
 const http = require('http');
 const dotenv = require('dotenv');
-// Reload nodemon for updated Firebase credentials: glentro-195f2 (v2)
+// Reload nodemon for updated Firebase credentials: glentro-195f2 (v3 platform routing)
 const app = require('./app');
 const connectDB = require('./config/db');
 const { initializeSocket } = require('./config/socket');

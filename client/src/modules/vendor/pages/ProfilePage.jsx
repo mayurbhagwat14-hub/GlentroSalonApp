@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { getImageUrl } from '../../../utils/imageUtils';
 import { sendTestNotification } from '../services/vendorApi';
@@ -9,7 +10,8 @@ import KycTab from './ProfileTabs/KycTab';
 import BankTab from './ProfileTabs/BankTab';
 
 const ProfilePage = () => {
-  const { vendor: user, setVendor: updateUser } = useAuth();
+  const { vendor: user, setVendor: updateUser, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('basic');
   const [isTestingNotification, setIsTestingNotification] = useState(false);
   const [testStatus, setTestStatus] = useState(null);
@@ -134,6 +136,21 @@ const ProfilePage = () => {
           {activeTab === 'kyc' && <KycTab onProfileUpdate={updateUser} />}
           {activeTab === 'bank' && <BankTab onProfileUpdate={updateUser} />}
         </div>
+      </div>
+
+      {/* Logout Action */}
+      <div className="mt-6 flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            logout('vendor');
+            navigate('/');
+          }}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-error hover:bg-error/10 border border-error/20 transition-all cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-[18px]">logout</span>
+          Log Out
+        </button>
       </div>
     </VendorPageLayout>
   );
