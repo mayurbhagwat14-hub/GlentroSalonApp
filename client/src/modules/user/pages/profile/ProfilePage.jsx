@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
 import { useNotifications } from '../../../../context/NotificationContext';
 import { useLocationContext } from '../../../../context/LocationContext';
-import { updateProfile } from '../../../../services/api/authApi';
+import { updateProfile, sendTestNotification } from '../../../../services/api/authApi';
 import { initiateChat, deleteUserAccount, getMyWallet } from '../../services/userApi';
 import Button from '../../../../components/common/Button';
 import Input from '../../../../components/common/Input';
@@ -27,6 +27,7 @@ const ProfilePage = () => {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [walletData, setWalletData] = useState(null);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -81,6 +82,24 @@ const ProfilePage = () => {
       });
     }
     setSaving(false);
+  };
+
+  const handleTestNotification = async () => {
+    setIsTestingNotification(true);
+    try {
+      const res = await sendTestNotification();
+      setMessage({
+        text: res.data?.message || 'Test notification sent to your device!',
+        type: 'success'
+      });
+    } catch (err) {
+      setMessage({
+        text: err.response?.data?.message || 'Failed to send test notification. Please allow notifications first.',
+        type: 'error'
+      });
+    } finally {
+      setIsTestingNotification(false);
+    }
   };
 
   const handleLogout = () => {
@@ -324,6 +343,32 @@ const ProfilePage = () => {
                   label="Contact Admin (Live Chat)"
                   description="Message us directly for support"
                   onClick={handleContactAdmin}
+                />
+              </div>
+            </section>
+
+            {/* Notifications Test Section */}
+            <section>
+              <div className="flex items-center justify-between mb-4 px-1">
+                <h2 className="font-headline-sm text-lg text-on-surface font-semibold">Notifications</h2>
+                {typeof window !== 'undefined' && 'Notification' in window && (
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    Notification.permission === 'granted'
+                      ? 'bg-green-100 text-green-800'
+                      : Notification.permission === 'denied'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    Browser: {Notification.permission.toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col gap-3">
+                <ListItem
+                  icon="notifications_active"
+                  label={isTestingNotification ? 'Sending Push Notification...' : 'Test Push Notification'}
+                  description="Send a test notification to your device using the token saved in the database"
+                  onClick={handleTestNotification}
                 />
               </div>
             </section>

@@ -1,3 +1,6 @@
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getMessaging, isSupported, getToken, deleteToken, onMessage } from 'firebase/messaging';
+
 // Read all Firebase configuration strictly from environment variables
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,53 +16,42 @@ let app = null;
 let messaging = null;
 
 /**
- * Runtime dynamic import helper that completely bypasses Vite's static AST import-analysis.
- * Prevents Vite from failing during dev server startup when the package is installing or missing.
+ * Initialize Firebase App
  */
-const runtimeImport = (moduleSpecifier) => {
-  try {
-    return new Function('m', 'return import(m)')(moduleSpecifier);
-  } catch (err) {
-    return Promise.reject(err);
-  }
-};
-
-/**
- * Dynamically load Firebase App with graceful fallback if package is installing/unavailable
- */
-const loadFirebaseApp = async () => {
+const loadFirebaseApp = () => {
   if (app) return app;
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) return null;
+  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+    console.warn('[FCM] Firebase config is missing apiKey or projectId');
+    return null;
+  }
 
   try {
-    const { initializeApp, getApps, getApp } = await runtimeImport('firebase/app');
     app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
     return app;
   } catch (err) {
-    console.warn('Firebase App SDK not installed or unavailable:', err.message);
+    console.error('[FCM] Firebase App initialization error:', err);
     return null;
   }
 };
 
 /**
- * Dynamically load Firebase Messaging with graceful fallback
+ * Initialize Firebase Messaging
  */
 const loadFirebaseMessaging = async () => {
   if (messaging) return messaging;
-  const firebaseApp = await loadFirebaseApp();
+  const firebaseApp = loadFirebaseApp();
   if (!firebaseApp) return null;
 
   try {
-    const { getMessaging, isSupported } = await runtimeImport('firebase/messaging');
     const supported = await isSupported();
     if (!supported) {
-      console.log('Firebase Cloud Messaging is not supported in this browser environment.');
+      console.warn('[FCM] Firebase Cloud Messaging is not supported in this browser environment.');
       return null;
     }
     messaging = getMessaging(firebaseApp);
     return messaging;
   } catch (err) {
-    console.warn('Firebase Messaging SDK not installed or unavailable:', err.message);
+    console.error('[FCM] Firebase Messaging SDK error:', err);
     return null;
   }
 };
@@ -70,47 +62,80 @@ const loadFirebaseMessaging = async () => {
  */
 export const requestNotificationPermission = async () => {
   try {
+    console.log('[FCM] Requesting notification permission...');
     const msg = await loadFirebaseMessaging();
     if (!msg) {
+      console.warn('[FCM] Messaging could not be loaded');
       return null;
     }
 
     if (!('Notification' in window)) {
-      console.log('This browser does not support desktop notifications.');
+      console.warn('[FCM] This browser does not support desktop notifications.');
       return null;
     }
 
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.log('Notification permission denied by user.');
+    let permission = Notification.permission;
+    console.log('[FCM] Current permission status:', permission);
+
+    if (permission === 'denied') {
+      console.warn('[FCM] Notification permission was previously denied by user.');
       return null;
+    }
+
+    if (permission !== 'granted') {
+      permission = await Notification.requestPermission();
+      console.log('[FCM] User response to permission prompt:', permission);
+      if (permission !== 'granted') {
+        console.warn('[FCM] Notification permission was not granted.');
+        return null;
+      }
     }
 
     let swRegistration = undefined;
     if ('serviceWorker' in navigator) {
       try {
-        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { updateViaCache: 'none' });
+        await swRegistration.update().catch(() => {});
+        await navigator.serviceWorker.ready;
+        console.log('[FCM] Service Worker registered and ready');
       } catch (swErr) {
-        console.warn('FCM Service worker registration note:', swErr.message);
+        console.warn('[FCM] Service worker registration note:', swErr.message);
       }
     }
 
     const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+    console.log('[FCM] Requesting token with VAPID key:', vapidKey ? 'configured' : 'missing');
+
     const tokenOptions = {
       ...(vapidKey ? { vapidKey } : {}),
       ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {})
     };
 
-    const { getToken } = await runtimeImport('firebase/messaging');
+    const currentProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+    const previousProjectId = localStorage.getItem('glentro_fcm_project_id');
+
+    // If Firebase project changed, delete old cached token from browser IndexedDB
+    if (previousProjectId !== currentProjectId) {
+      console.log('[FCM] Firebase project changed to', currentProjectId, '— clearing old token cache...');
+      try {
+        await deleteToken(msg);
+      } catch (delErr) {
+        console.warn('[FCM] Old token delete note:', delErr.message);
+      }
+      localStorage.removeItem('glentro_fcm_token');
+      localStorage.setItem('glentro_fcm_project_id', currentProjectId);
+    }
+
     const currentToken = await getToken(msg, tokenOptions);
     if (currentToken) {
+      console.log('[FCM] Token successfully retrieved:', currentToken.substring(0, 15) + '...');
       return currentToken;
     } else {
-      console.log('No registration token available.');
+      console.warn('[FCM] No registration token returned from Firebase.');
       return null;
     }
   } catch (error) {
-    console.error('Error retrieving FCM registration token:', error);
+    console.error('[FCM] Error retrieving FCM registration token:', error);
     return null;
   }
 };
@@ -123,15 +148,15 @@ export const requestNotificationPermission = async () => {
 export const onForegroundMessage = (callback) => {
   let unsubscribeFn = null;
 
-  loadFirebaseMessaging().then(async (msg) => {
+  loadFirebaseMessaging().then((msg) => {
     if (!msg) return;
     try {
-      const { onMessage } = await runtimeImport('firebase/messaging');
       unsubscribeFn = onMessage(msg, (payload) => {
+        console.log('[FCM] Foreground message received:', payload);
         callback(payload);
       });
     } catch (err) {
-      console.warn('Unable to attach foreground message listener:', err.message);
+      console.warn('[FCM] Unable to attach foreground message listener:', err.message);
     }
   });
 

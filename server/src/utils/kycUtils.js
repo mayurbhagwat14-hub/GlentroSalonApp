@@ -50,6 +50,8 @@ const sanitizeVendorForPublic = (vendorObj) => {
   delete obj.bank;
   delete obj.accountStatus;
   delete obj.fcmToken;
+  delete obj.fcmtoken;
+  delete obj.fcmtokenmobile;
   delete obj.commissionRate;
   delete obj.subscriptionPlan;
   delete obj.__v;

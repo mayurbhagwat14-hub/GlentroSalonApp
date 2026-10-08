@@ -10,6 +10,8 @@ export const updateVendorKyc = (data) => api.put('/vendors/kyc', data, { headers
 export const updateVendorBank = (data) => api.put('/vendors/bank', data);
 export const getVendorDocument = (field) => api.get(`/vendors/documents/${field}`, { responseType: 'blob' });
 export const updateFcmToken = (data) => api.put('/vendors/fcm-token', data);
+export const removeFcmToken = (data) => api.post('/vendors/fcm-token/remove', data);
+export const sendTestNotification = () => api.post('/vendors/test-notification');
 
 // Salons
 export const getVendorSalons = (params) => api.get('/salons/vendor/my-salons', { params });

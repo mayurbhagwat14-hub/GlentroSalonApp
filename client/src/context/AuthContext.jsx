@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getProfile as getUserProfile } from '../services/api/authApi';
-import { getProfile as getVendorProfile } from '../modules/vendor/services/vendorApi';
+import { getProfile as getUserProfile, updateFcmToken as updateUserFcmToken, removeFcmToken as removeUserFcmToken } from '../services/api/authApi';
+import { getProfile as getVendorProfile, updateFcmToken as updateVendorFcmToken, removeFcmToken as removeVendorFcmToken } from '../modules/vendor/services/vendorApi';
 import { getProfile as getAdminProfile } from '../modules/admin/services/adminApi';
+import { requestNotificationPermission } from '../config/firebase';
 
 const AuthContext = createContext(null);
 
@@ -78,7 +79,7 @@ export const AuthProvider = ({ children }) => {
     loadProfiles();
   }, [userToken, vendorToken, adminToken]);
 
-  // Tab-isolated login function: saves credentials to current tab's sessionStorage only
+  // Tab-isolated login function: saves credentials and saves FCM token to database
   const setAuth = useCallback((role, userData, token) => {
     if (role === 'user') {
       sessionStorage.setItem('token', token);
@@ -96,10 +97,43 @@ export const AuthProvider = ({ children }) => {
       setAdminToken(token);
       setAdmin(userData);
     }
+
+    // Immediately trigger FCM token registration on login/signup for user or vendor
+    if (role === 'user' || role === 'vendor') {
+      requestNotificationPermission().then(async (fcmToken) => {
+        if (fcmToken) {
+          localStorage.setItem('glentro_fcm_token', fcmToken);
+          try {
+            if (role === 'user') {
+              await updateUserFcmToken({ fcmtoken: fcmToken, platform: 'web' });
+            } else if (role === 'vendor') {
+              await updateVendorFcmToken({ fcmtoken: fcmToken, platform: 'web' });
+            }
+          } catch (err) {
+            console.warn('Error saving FCM token on login/signup:', err.message);
+          }
+        }
+      }).catch((err) => {
+        console.warn('FCM permission on login/signup error:', err.message);
+      });
+    }
   }, []);
 
-  // Tab-isolated logout function: removes credentials from current tab's sessionStorage only
-  const logout = useCallback((role) => {
+  // Tab-isolated logout function: removes FCM token from DB and removes credentials from session
+  const logout = useCallback(async (role) => {
+    const savedFcmToken = localStorage.getItem('glentro_fcm_token');
+    if (savedFcmToken) {
+      try {
+        if (role === 'user') {
+          await removeUserFcmToken({ fcmtoken: savedFcmToken, platform: 'web' });
+        } else if (role === 'vendor') {
+          await removeVendorFcmToken({ fcmtoken: savedFcmToken, platform: 'web' });
+        }
+      } catch (err) {
+        console.warn('Error removing FCM token from DB on logout:', err.message);
+      }
+    }
+
     if (role === 'user') {
       sessionStorage.removeItem('token');
       sessionStorage.removeItem('user');

@@ -2,6 +2,52 @@ const User = require('../models/User');
 const Vendor = require('../models/Vendor');
 const generateToken = require('../utils/generateToken');
 
+const saveFcmTokenToDoc = async (modelInstance, body) => {
+  try {
+    const rawWebToken = body.fcmtoken !== undefined ? body.fcmtoken : undefined;
+    const rawMobileToken = body.fcmtokenmobile !== undefined ? body.fcmtokenmobile : undefined;
+    const legacyToken = body.token !== undefined ? body.token : body.fcmToken;
+    const platform = (body.platform || '').toLowerCase();
+
+    const toTokenArray = (val) => {
+      if (Array.isArray(val)) return val.map((t) => String(t).trim()).filter(Boolean);
+      if (typeof val === 'string' && val.trim()) return [val.trim()];
+      return [];
+    };
+
+    const updateOps = {};
+    if (rawWebToken !== undefined) {
+      const tokens = toTokenArray(rawWebToken);
+      if (tokens.length) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        updateOps.$addToSet.fcmtoken = { $each: tokens };
+      }
+    }
+    if (rawMobileToken !== undefined) {
+      const tokens = toTokenArray(rawMobileToken);
+      if (tokens.length) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        updateOps.$addToSet.fcmtokenmobile = { $each: tokens };
+      }
+    }
+    if (legacyToken !== undefined && rawWebToken === undefined && rawMobileToken === undefined) {
+      const tokens = toTokenArray(legacyToken);
+      if (tokens.length) {
+        const isMobile = ['android', 'ios', 'mobile'].includes(platform);
+        const targetField = isMobile ? 'fcmtokenmobile' : 'fcmtoken';
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        updateOps.$addToSet[targetField] = { $each: tokens };
+      }
+    }
+
+    if (updateOps.$addToSet) {
+      await modelInstance.constructor.findByIdAndUpdate(modelInstance._id, updateOps);
+    }
+  } catch (err) {
+    console.error('Error saving FCM token in authController:', err.message);
+  }
+};
+
 // @desc    Register a new user
 // @route   POST /api/auth/register/user
 const registerUser = async (req, res, next) => {
@@ -14,6 +60,7 @@ const registerUser = async (req, res, next) => {
     }
 
     const user = await User.create({ name, email, phone, password });
+    await saveFcmTokenToDoc(user, req.body);
     const token = generateToken(user._id, 'user');
 
     res.status(201).json({
@@ -64,6 +111,7 @@ const loginUser = async (req, res, next) => {
 
     user.lastLogin = new Date();
     await user.save();
+    await saveFcmTokenToDoc(user, req.body);
 
     const token = generateToken(user._id, user.role);
 
@@ -103,6 +151,7 @@ const registerVendor = async (req, res, next) => {
     if (country !== undefined) vendorData.country = country;
 
     const vendor = await Vendor.create(vendorData);
+    await saveFcmTokenToDoc(vendor, req.body);
     const token = generateToken(vendor._id, 'vendor');
 
     res.status(201).json({
@@ -135,6 +184,7 @@ const loginVendor = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Account has been deactivated' });
     }
 
+    await saveFcmTokenToDoc(vendor, req.body);
     const token = generateToken(vendor._id, 'vendor');
 
     res.json({

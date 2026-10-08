@@ -254,26 +254,246 @@ const toggleVendorStatus = async (req, res, next) => {
 // @desc    Update FCM token
 const updateFcmToken = async (req, res, next) => {
   try {
-    const token = req.body.token !== undefined ? req.body.token : req.body.fcmToken;
+    const rawWebToken = req.body.fcmtoken !== undefined ? req.body.fcmtoken : undefined;
+    const rawMobileToken = req.body.fcmtokenmobile !== undefined ? req.body.fcmtokenmobile : undefined;
+    const legacyToken = req.body.token !== undefined ? req.body.token : req.body.fcmToken;
     const platform = (req.body.platform || '').toLowerCase();
 
-    if (token === undefined) {
-      return res.status(400).json({ success: false, message: 'Token is required' });
+    const updateOps = {};
+
+    // Helper to format tokens into a clean array of non-empty strings
+    const toTokenArray = (val) => {
+      if (Array.isArray(val)) {
+        return val.map((t) => String(t).trim()).filter(Boolean);
+      }
+      if (typeof val === 'string' && val.trim()) {
+        return [val.trim()];
+      }
+      return [];
+    };
+
+    if (rawWebToken !== undefined) {
+      const tokens = toTokenArray(rawWebToken);
+      if (tokens.length > 0) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        updateOps.$addToSet.fcmtoken = { $each: tokens };
+      }
     }
 
-    const updateFields = { fcmToken: token };
-    if (['android', 'ios', 'web'].includes(platform)) {
-      updateFields.fcmPlatform = platform;
+    if (rawMobileToken !== undefined) {
+      const tokens = toTokenArray(rawMobileToken);
+      if (tokens.length > 0) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        updateOps.$addToSet.fcmtokenmobile = { $each: tokens };
+      }
     }
 
-    await Vendor.findByIdAndUpdate(req.user.id, updateFields);
+    // Support legacy payload: { token: '...', platform: 'web'|'android'|'ios' }
+    if (legacyToken !== undefined && rawWebToken === undefined && rawMobileToken === undefined) {
+      const tokens = toTokenArray(legacyToken);
+      if (tokens.length > 0) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        const isMobile = ['android', 'ios', 'mobile'].includes(platform);
+        const targetField = isMobile ? 'fcmtokenmobile' : 'fcmtoken';
+        updateOps.$addToSet[targetField] = { $each: tokens };
+      }
+    }
+
+    if (!updateOps.$addToSet) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Valid fcmtoken (web) or fcmtokenmobile (mobile) token is required' 
+      });
+    }
+
+    const updatedVendor = await Vendor.findByIdAndUpdate(req.user.id, updateOps, { new: true });
 
     res.json({
       success: true,
       message: 'FCM token saved successfully',
       role: 'vendor',
+      data: {
+        fcmtoken: updatedVendor?.fcmtoken || [],
+        fcmtokenmobile: updatedVendor?.fcmtokenmobile || []
+      }
     });
   } catch (error) { next(error); }
 };
 
-module.exports = { getVendors, getVendorById, getOwnProfile, updateProfile, updateKyc, updateBankDetails, getKycDocument, approveVendor, rejectVendor, toggleVendorStatus, updateFcmToken };
+// @desc    Remove FCM token (on logout)
+// @route   POST /api/vendors/fcm-token/remove
+const removeFcmToken = async (req, res, next) => {
+  try {
+    const rawWebToken = req.body.fcmtoken !== undefined ? req.body.fcmtoken : undefined;
+    const rawMobileToken = req.body.fcmtokenmobile !== undefined ? req.body.fcmtokenmobile : undefined;
+    const legacyToken = req.body.token !== undefined ? req.body.token : req.body.fcmToken;
+    const platform = (req.body.platform || '').toLowerCase();
+
+    const pullOps = {};
+
+    if (rawWebToken) {
+      pullOps.$pull = pullOps.$pull || {};
+      pullOps.$pull.fcmtoken = String(rawWebToken).trim();
+    }
+    if (rawMobileToken) {
+      pullOps.$pull = pullOps.$pull || {};
+      pullOps.$pull.fcmtokenmobile = String(rawMobileToken).trim();
+    }
+    if (legacyToken && !rawWebToken && !rawMobileToken) {
+      pullOps.$pull = pullOps.$pull || {};
+      const tokenStr = String(legacyToken).trim();
+      if (['android', 'ios', 'mobile'].includes(platform)) {
+        pullOps.$pull.fcmtokenmobile = tokenStr;
+      } else if (platform === 'web') {
+        pullOps.$pull.fcmtoken = tokenStr;
+      } else {
+        pullOps.$pull.fcmtoken = tokenStr;
+        pullOps.$pull.fcmtokenmobile = tokenStr;
+      }
+    }
+
+    if (Object.keys(pullOps).length > 0) {
+      await Vendor.findByIdAndUpdate(req.user.id, pullOps);
+    }
+
+    res.json({
+      success: true,
+      message: 'FCM token removed successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Send test notification to vendor's saved device tokens in DB
+// @route   POST /api/vendors/test-notification
+const sendTestNotification = async (req, res, next) => {
+  try {
+    const vendor = await Vendor.findById(req.user.id);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: 'Vendor not found' });
+    }
+
+    const webTokens = Array.isArray(vendor.fcmtoken) ? vendor.fcmtoken : [];
+    const mobileTokens = Array.isArray(vendor.fcmtokenmobile) ? vendor.fcmtokenmobile : [];
+    const allTokens = [...new Set([...webTokens, ...mobileTokens])].filter(
+      (t) => typeof t === 'string' && t.trim() !== ''
+    );
+
+    if (allTokens.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No FCM token found in database for your vendor account. Please allow notification permission on your device first.',
+      });
+    }
+
+    const admin = require('../utils/firebase');
+    if (!admin || !admin.apps || admin.apps.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'Firebase Admin is not configured or initialized on the server.',
+      });
+    }
+
+    const title = '🔔 Test Notification';
+    const body = `Hello ${vendor.businessName || vendor.name || 'Partner'}! Vendor push notifications are working properly.`;
+
+    const messagePayload = {
+      notification: {
+        title,
+        body,
+      },
+      webpush: {
+        notification: {
+          title,
+          body,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          requireInteraction: true,
+        },
+        fcmOptions: {
+          link: '/vendor/profile',
+        },
+      },
+      data: {
+        type: 'TEST_NOTIFICATION',
+        title,
+        body,
+        message: body,
+        timestamp: String(Date.now()),
+      },
+    };
+
+    const result = await admin.messaging().sendEachForMulticast({
+      tokens: allTokens,
+      ...messagePayload,
+    });
+
+    // Automatically clean up stale / unregistered / mismatched project tokens from DB
+    const staleTokens = [];
+    if (result && Array.isArray(result.responses)) {
+      result.responses.forEach((resp, idx) => {
+        if (!resp.success && resp.error) {
+          const errStr = ((resp.error.code || '') + ' ' + (resp.error.message || '')).toLowerCase();
+          if (
+            errStr.includes('registration-token-not-registered') ||
+            errStr.includes('invalid-registration-token') ||
+            errStr.includes('mismatched-credential') ||
+            errStr.includes('third party') ||
+            errStr.includes('third-party') ||
+            errStr.includes('notregistered')
+          ) {
+            staleTokens.push(allTokens[idx]);
+          }
+        }
+      });
+      if (staleTokens.length > 0) {
+        await Vendor.findByIdAndUpdate(req.user.id, {
+          $pull: {
+            fcmtoken: { $in: staleTokens },
+            fcmtokenmobile: { $in: staleTokens },
+          },
+        });
+      }
+    }
+
+    if (result.successCount === 0 && staleTokens.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Old Firebase project token was cleared. Please refresh the page (F5) once so your new token registers, then click Test again!',
+        clearedTokensCount: staleTokens.length,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Test notification sent successfully to your saved vendor device(s)!',
+      sentToTokensCount: allTokens.length,
+      successCount: result.successCount,
+      failureCount: result.failureCount,
+      result,
+    });
+  } catch (error) {
+    console.error('Vendor test notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to send test notification',
+    });
+  }
+};
+
+module.exports = { 
+  getVendors, 
+  getVendorById, 
+  getOwnProfile, 
+  updateProfile, 
+  updateKyc, 
+  updateBankDetails, 
+  getKycDocument, 
+  approveVendor, 
+  rejectVendor, 
+  toggleVendorStatus, 
+  updateFcmToken,
+  removeFcmToken,
+  sendTestNotification
+};

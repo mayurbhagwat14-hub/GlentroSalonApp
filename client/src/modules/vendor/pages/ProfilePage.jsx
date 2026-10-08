@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { getImageUrl } from '../../../utils/imageUtils';
+import { sendTestNotification } from '../services/vendorApi';
 import VendorPageLayout from '../../../components/vendor/layout/VendorPageLayout';
 import VendorPageHeader from '../../../components/vendor/layout/VendorPageHeader';
 import BasicInfoTab from './ProfileTabs/BasicInfoTab';
@@ -10,6 +11,27 @@ import BankTab from './ProfileTabs/BankTab';
 const ProfilePage = () => {
   const { vendor: user, setVendor: updateUser } = useAuth();
   const [activeTab, setActiveTab] = useState('basic');
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
+  const [testStatus, setTestStatus] = useState(null);
+
+  const handleTestNotification = async () => {
+    setIsTestingNotification(true);
+    setTestStatus(null);
+    try {
+      const res = await sendTestNotification();
+      setTestStatus({
+        type: 'success',
+        message: res.data?.message || 'Test notification sent to your device!',
+      });
+    } catch (err) {
+      setTestStatus({
+        type: 'error',
+        message: err.response?.data?.message || 'Failed to send test notification. Please allow notifications first.',
+      });
+    } finally {
+      setIsTestingNotification(false);
+    }
+  };
 
   const tabs = [
     { id: 'basic', label: 'Business Profile', icon: 'storefront' },
@@ -37,8 +59,46 @@ const ProfilePage = () => {
             </div>
           </div>
           <div className="text-center md:text-left flex-1">
-            <h1 className="text-2xl font-bold text-on-surface">{user?.businessName || user?.name}</h1>
-            <p className="text-muted-text mt-1">{user?.email} • {user?.phone}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-on-surface">{user?.businessName || user?.name}</h1>
+                <p className="text-muted-text mt-1">{user?.email} • {user?.phone}</p>
+              </div>
+
+              {/* Test Notification Button */}
+              <div className="flex items-center gap-2">
+                {typeof window !== 'undefined' && 'Notification' in window && (
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    Notification.permission === 'granted'
+                      ? 'bg-green-100 text-green-800'
+                      : Notification.permission === 'denied'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {Notification.permission.toUpperCase()}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  disabled={isTestingNotification}
+                  onClick={handleTestNotification}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 text-sm font-semibold transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  <span className={`material-symbols-outlined text-[18px] ${isTestingNotification ? 'animate-spin' : ''}`}>
+                    {isTestingNotification ? 'sync' : 'notifications_active'}
+                  </span>
+                  {isTestingNotification ? 'Sending...' : 'Test Push Notification'}
+                </button>
+              </div>
+            </div>
+
+            {testStatus && (
+              <div className={`mt-3 px-3 py-2 rounded-xl text-xs font-medium border flex items-center gap-2 ${testStatus.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                <span className="material-symbols-outlined text-[16px]">{testStatus.type === 'success' ? 'check_circle' : 'error'}</span>
+                <span>{testStatus.message}</span>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-3">
               <span className={`px-2.5 py-1 text-xs font-bold rounded-lg uppercase tracking-wide flex items-center gap-1.5 ${user?.isApproved ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-yellow-50 text-yellow-700 border border-yellow-200'}`}>
                 <span className="material-symbols-outlined text-[16px]">{user?.isApproved ? 'check_circle' : 'pending'}</span>

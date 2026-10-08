@@ -51,14 +51,13 @@ const userSchema = new mongoose.Schema(
         type: [Number], // [longitude, latitude]
       },
     },
-    fcmToken: {
-      type: String,
-      default: '',
+    fcmtoken: {
+      type: [String],
+      default: [],
     },
-    fcmPlatform: {
-      type: String,
-      enum: ['android', 'ios', 'web',''],
-      default: '',
+    fcmtokenmobile: {
+      type: [String],
+      default: [],
     },
     accountStatus: {
       type: String,

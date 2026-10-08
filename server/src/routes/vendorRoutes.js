@@ -1,5 +1,19 @@
 const router = require('express').Router();
-const { getVendors, getVendorById, getOwnProfile, updateProfile, updateKyc, updateBankDetails, getKycDocument, approveVendor, rejectVendor, toggleVendorStatus, updateFcmToken } = require('../controllers/vendorController');
+const { 
+  getVendors, 
+  getVendorById, 
+  getOwnProfile, 
+  updateProfile, 
+  updateKyc, 
+  updateBankDetails, 
+  getKycDocument, 
+  approveVendor, 
+  rejectVendor, 
+  toggleVendorStatus, 
+  updateFcmToken,
+  removeFcmToken,
+  sendTestNotification
+} = require('../controllers/vendorController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -17,6 +31,9 @@ router.get('/documents/:field', protect, authorize('vendor', 'admin'), getKycDoc
 router.put('/fcm-token', protect, authorize('vendor'), updateFcmToken);
 router.post('/fcm-token', protect, authorize('vendor'), updateFcmToken);
 router.post('/fcm-tokens/save', protect, authorize('vendor'), updateFcmToken);
+router.post('/fcm-token/remove', protect, authorize('vendor'), removeFcmToken);
+router.delete('/fcm-token', protect, authorize('vendor'), removeFcmToken);
+router.post('/test-notification', protect, authorize('vendor'), sendTestNotification);
 
 // Admin routes
 router.get('/', protect, authorize('admin'), getVendors);

@@ -56,21 +56,52 @@ const createNotification = async ({
         recipient = await Vendor.findById(recipientId);
       }
 
-      if (recipient && recipient.fcmToken) {
-        await admin.messaging().send({
-          token: recipient.fcmToken,
+      // Collect all tokens from web (fcmtoken) and mobile (fcmtokenmobile)
+      const webTokens = Array.isArray(recipient?.fcmtoken) ? recipient.fcmtoken : [];
+      const mobileTokens = Array.isArray(recipient?.fcmtokenmobile) ? recipient.fcmtokenmobile : [];
+      const legacyTokens = recipient?.fcmToken ? [recipient.fcmToken] : [];
+
+      const allTokens = [...new Set([...webTokens, ...mobileTokens, ...legacyTokens])].filter(
+        (t) => typeof t === 'string' && t.trim() !== ''
+      );
+
+      if (allTokens.length > 0) {
+        const payloadData = Object.keys(data || {}).reduce((acc, key) => {
+          acc[key] = String(data[key]);
+          return acc;
+        }, { type: String(type || '') });
+
+        const messagePayload = {
           notification: {
-            title,
-            body: message,
+            title: String(title || ''),
+            body: String(message || ''),
           },
-          data: {
-            type,
-            ...Object.keys(data).reduce((acc, key) => {
-              acc[key] = String(data[key]);
-              return acc;
-            }, {})
-          }
-        });
+          webpush: {
+            notification: {
+              title: String(title || ''),
+              body: String(message || ''),
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
+              requireInteraction: true,
+            },
+            fcmOptions: {
+              link: '/',
+            },
+          },
+          data: payloadData,
+        };
+
+        if (allTokens.length === 1) {
+          await admin.messaging().send({
+            token: allTokens[0],
+            ...messagePayload,
+          });
+        } else {
+          await admin.messaging().sendEachForMulticast({
+            tokens: allTokens,
+            ...messagePayload,
+          });
+        }
       }
     }
   } catch (error) {

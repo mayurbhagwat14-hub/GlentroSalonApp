@@ -40,20 +40,25 @@ export const NotificationProvider = ({ children }) => {
     let isMounted = true;
     const registerFcm = async () => {
       try {
+        console.log('[NotificationContext] Checking and registering FCM token...');
         const fcmToken = await requestNotificationPermission();
         if (fcmToken && isMounted) {
+          localStorage.setItem('glentro_fcm_token', fcmToken);
           const endpoint = vendorToken ? '/vendors/fcm-token' : '/users/fcm-token';
-          await api.put(endpoint, { fcmToken });
+          console.log('[NotificationContext] Sending FCM token to backend endpoint:', endpoint);
+          const res = await api.put(endpoint, { fcmtoken: fcmToken, platform: 'web' });
+          console.log('[NotificationContext] FCM token saved to backend successfully:', res.data);
+        } else {
+          console.warn('[NotificationContext] FCM token not obtained (permission might be pending or denied)');
         }
       } catch (err) {
-        console.warn('FCM token registration warning:', err.message);
+        console.warn('[NotificationContext] FCM token registration error:', err.message);
       }
     };
 
-    const timer = setTimeout(registerFcm, 2000);
+    registerFcm();
     return () => {
       isMounted = false;
-      clearTimeout(timer);
     };
   }, [userToken, vendorToken]);
 
@@ -80,6 +85,29 @@ export const NotificationProvider = ({ children }) => {
         ),
         { icon: '', duration: 4000 }
       );
+
+      // Trigger native browser notification popup banner (Windows / Chrome)
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification(title, {
+            body: message,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            data: payload.data || {},
+          });
+        } catch (err) {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then((reg) => {
+              reg.showNotification(title, {
+                body: message,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                data: payload.data || {},
+              });
+            }).catch(() => {});
+          }
+        }
+      }
     });
 
     return () => {

@@ -108,24 +108,68 @@ const toggleUserStatus = async (req, res, next) => {
 // @desc    Update FCM token
 const updateFcmToken = async (req, res, next) => {
   try {
-    const token = req.body.token !== undefined ? req.body.token : req.body.fcmToken;
+    const rawWebToken = req.body.fcmtoken !== undefined ? req.body.fcmtoken : undefined;
+    const rawMobileToken = req.body.fcmtokenmobile !== undefined ? req.body.fcmtokenmobile : undefined;
+    const legacyToken = req.body.token !== undefined ? req.body.token : req.body.fcmToken;
     const platform = (req.body.platform || '').toLowerCase();
 
-    if (token === undefined) {
-      return res.status(400).json({ success: false, message: 'Token is required' });
+    const updateOps = {};
+
+    // Helper to format tokens into a clean array of non-empty strings
+    const toTokenArray = (val) => {
+      if (Array.isArray(val)) {
+        return val.map((t) => String(t).trim()).filter(Boolean);
+      }
+      if (typeof val === 'string' && val.trim()) {
+        return [val.trim()];
+      }
+      return [];
+    };
+
+    if (rawWebToken !== undefined) {
+      const tokens = toTokenArray(rawWebToken);
+      if (tokens.length > 0) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        updateOps.$addToSet.fcmtoken = { $each: tokens };
+      }
     }
 
-    const updateFields = { fcmToken: token };
-    if (['android', 'ios', 'web'].includes(platform)) {
-      updateFields.fcmPlatform = platform;
+    if (rawMobileToken !== undefined) {
+      const tokens = toTokenArray(rawMobileToken);
+      if (tokens.length > 0) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        updateOps.$addToSet.fcmtokenmobile = { $each: tokens };
+      }
     }
 
-    await User.findByIdAndUpdate(req.user.id, updateFields);
+    // Support legacy payload: { token: '...', platform: 'web'|'android'|'ios' }
+    if (legacyToken !== undefined && rawWebToken === undefined && rawMobileToken === undefined) {
+      const tokens = toTokenArray(legacyToken);
+      if (tokens.length > 0) {
+        updateOps.$addToSet = updateOps.$addToSet || {};
+        const isMobile = ['android', 'ios', 'mobile'].includes(platform);
+        const targetField = isMobile ? 'fcmtokenmobile' : 'fcmtoken';
+        updateOps.$addToSet[targetField] = { $each: tokens };
+      }
+    }
+
+    if (!updateOps.$addToSet) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Valid fcmtoken (web) or fcmtokenmobile (mobile) token is required' 
+      });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, updateOps, { new: true });
 
     res.json({
       success: true,
       message: 'FCM token saved successfully',
       role: 'user',
+      data: {
+        fcmtoken: updatedUser?.fcmtoken || [],
+        fcmtokenmobile: updatedUser?.fcmtokenmobile || []
+      }
     });
   } catch (error) { next(error); }
 };
@@ -168,7 +212,7 @@ const deleteAccount = async (req, res, next) => {
     // In a real production app, we would also clear active sessions, tokens, etc.
     // For JWT based flow without token blacklisting, the frontend clearing token is sufficient.
     // If we have FCM tokens, we might want to clear it so we don't send notifications to deleted users.
-    await User.findByIdAndUpdate(req.user.id, { fcmToken: '' });
+    await User.findByIdAndUpdate(req.user.id, { fcmtoken: [], fcmtokenmobile: [] });
 
     res.json({
       success: true,
@@ -179,4 +223,176 @@ const deleteAccount = async (req, res, next) => {
   }
 };
 
-module.exports = { getUsers, getUserById, updateProfile, updateLocation, toggleUserStatus, updateFcmToken, deleteAccount };
+// @desc    Remove FCM token (on logout)
+// @route   POST /api/users/fcm-token/remove
+const removeFcmToken = async (req, res, next) => {
+  try {
+    const rawWebToken = req.body.fcmtoken !== undefined ? req.body.fcmtoken : undefined;
+    const rawMobileToken = req.body.fcmtokenmobile !== undefined ? req.body.fcmtokenmobile : undefined;
+    const legacyToken = req.body.token !== undefined ? req.body.token : req.body.fcmToken;
+    const platform = (req.body.platform || '').toLowerCase();
+
+    const pullOps = {};
+
+    if (rawWebToken) {
+      pullOps.$pull = pullOps.$pull || {};
+      pullOps.$pull.fcmtoken = String(rawWebToken).trim();
+    }
+    if (rawMobileToken) {
+      pullOps.$pull = pullOps.$pull || {};
+      pullOps.$pull.fcmtokenmobile = String(rawMobileToken).trim();
+    }
+    if (legacyToken && !rawWebToken && !rawMobileToken) {
+      pullOps.$pull = pullOps.$pull || {};
+      const tokenStr = String(legacyToken).trim();
+      if (['android', 'ios', 'mobile'].includes(platform)) {
+        pullOps.$pull.fcmtokenmobile = tokenStr;
+      } else if (platform === 'web') {
+        pullOps.$pull.fcmtoken = tokenStr;
+      } else {
+        pullOps.$pull.fcmtoken = tokenStr;
+        pullOps.$pull.fcmtokenmobile = tokenStr;
+      }
+    }
+
+    if (Object.keys(pullOps).length > 0) {
+      await User.findByIdAndUpdate(req.user.id, pullOps);
+    }
+
+    res.json({
+      success: true,
+      message: 'FCM token removed successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Send test notification to saved device tokens in DB
+// @route   POST /api/users/test-notification
+const sendTestNotification = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const webTokens = Array.isArray(user.fcmtoken) ? user.fcmtoken : [];
+    const mobileTokens = Array.isArray(user.fcmtokenmobile) ? user.fcmtokenmobile : [];
+    const allTokens = [...new Set([...webTokens, ...mobileTokens])].filter(
+      (t) => typeof t === 'string' && t.trim() !== ''
+    );
+
+    if (allTokens.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No FCM token found in database for your account. Please allow notification permission on your device first.',
+      });
+    }
+
+    const admin = require('../utils/firebase');
+    if (!admin || !admin.apps || admin.apps.length === 0) {
+      return res.status(500).json({
+        success: false,
+        message: 'Firebase Admin is not configured or initialized on the server.',
+      });
+    }
+
+    const title = '🔔 Test Notification';
+    const body = `Hello ${user.name || 'Customer'}! Push notifications are configured and working properly.`;
+
+    const messagePayload = {
+      notification: {
+        title,
+        body,
+      },
+      webpush: {
+        notification: {
+          title,
+          body,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          requireInteraction: true,
+        },
+        fcmOptions: {
+          link: '/profile',
+        },
+      },
+      data: {
+        type: 'TEST_NOTIFICATION',
+        title,
+        body,
+        message: body,
+        timestamp: String(Date.now()),
+      },
+    };
+
+    const result = await admin.messaging().sendEachForMulticast({
+      tokens: allTokens,
+      ...messagePayload,
+    });
+
+    // Automatically clean up stale / unregistered / mismatched project tokens from DB
+    const staleTokens = [];
+    if (result && Array.isArray(result.responses)) {
+      result.responses.forEach((resp, idx) => {
+        if (!resp.success && resp.error) {
+          const errStr = ((resp.error.code || '') + ' ' + (resp.error.message || '')).toLowerCase();
+          if (
+            errStr.includes('registration-token-not-registered') ||
+            errStr.includes('invalid-registration-token') ||
+            errStr.includes('mismatched-credential') ||
+            errStr.includes('third party') ||
+            errStr.includes('third-party') ||
+            errStr.includes('notregistered')
+          ) {
+            staleTokens.push(allTokens[idx]);
+          }
+        }
+      });
+      if (staleTokens.length > 0) {
+        await User.findByIdAndUpdate(req.user.id, {
+          $pull: {
+            fcmtoken: { $in: staleTokens },
+            fcmtokenmobile: { $in: staleTokens },
+          },
+        });
+      }
+    }
+
+    if (result.successCount === 0 && staleTokens.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Old Firebase project token was cleared. Please refresh the page (F5) once so your new token registers, then click Test again!',
+        clearedTokensCount: staleTokens.length,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Test notification sent successfully to your saved device(s)!',
+      sentToTokensCount: allTokens.length,
+      successCount: result.successCount,
+      failureCount: result.failureCount,
+      result,
+    });
+  } catch (error) {
+    console.error('User test notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to send test notification',
+    });
+  }
+};
+
+module.exports = { 
+  getUsers, 
+  getUserById, 
+  updateProfile, 
+  updateLocation, 
+  toggleUserStatus, 
+  updateFcmToken, 
+  removeFcmToken,
+  sendTestNotification,
+  deleteAccount 
+};

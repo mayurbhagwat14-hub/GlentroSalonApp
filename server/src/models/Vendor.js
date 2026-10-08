@@ -135,14 +135,13 @@ const vendorSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
-    fcmToken: {
-      type: String,
-      default: '',
+    fcmtoken: {
+      type: [String],
+      default: [],
     },
-    fcmPlatform: {
-      type: String,
-      enum: ['android', 'ios', 'web',''],
-      default: '',
+    fcmtokenmobile: {
+      type: [String],
+      default: [],
     },
   },
   {
