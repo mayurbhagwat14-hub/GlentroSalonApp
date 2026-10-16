@@ -10,22 +10,23 @@ const MainLayout = ({ children }) => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
-  // Hide BottomNav & Footer on secondary flow/detail pages for proper native app experience
+  // Hide BottomNav only on sub-flow/detail pages (checkout, book slot, salon detail, chat room, booking detail)
+  // NOTE: Main tabs like /bookings, /chat, /search, /profile MUST keep BottomNav!
   const isFlowPage = 
-    pathname.includes('/checkout') || 
-    pathname.includes('/book') || 
+    pathname.endsWith('/checkout') || 
+    pathname.endsWith('/book') || 
     /^\/salon\/[^/]+$/.test(pathname) ||
-    /^\/chat\/.+/.test(pathname) ||
-    /^\/booking\/.+/.test(pathname);
+    /^\/chat\/[^/]+$/.test(pathname) ||
+    /^\/booking\/[^/]+$/.test(pathname);
 
   return (
     <div className={`bg-background text-on-background antialiased min-h-screen ${
       isFlowPage ? 'pb-0' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'
-    } md:pb-0 pt-[env(safe-area-inset-top)] md:pt-[calc(4.5rem+env(safe-area-inset-top))] max-w-[100vw] overflow-x-hidden flex flex-col`}>
+    } md:pb-0 pt-0 md:pt-[calc(4.5rem+env(safe-area-inset-top))] max-w-[100vw] overflow-x-hidden flex flex-col`}>
       <TopNav />
 
       {/* Main Content */}
-      <main className="w-full px-4 md:px-margin-desktop max-w-container-max mx-auto box-border flex-grow">
+      <main className="w-full px-4 md:px-margin-desktop max-w-container-max mx-auto box-border flex-grow pt-0">
         {children || <Outlet />}
       </main>
 

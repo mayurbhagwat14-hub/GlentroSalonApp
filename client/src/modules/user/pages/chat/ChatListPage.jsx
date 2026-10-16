@@ -47,7 +47,7 @@ const ChatListPage = () => {
   });
 
   return (
-    <div className="space-y-6 animate-fade-in w-full">
+    <div className="space-y-3 md:space-y-4 animate-fade-in w-full px-3 sm:px-4 md:px-0 pt-1 md:pt-4 pb-20 md:pb-12">
       <PageHeader title="Messages" fallbackPath="/profile" />
       <div className="hidden md:flex items-center gap-4">
         {fromProfile && (

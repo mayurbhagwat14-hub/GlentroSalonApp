@@ -83,7 +83,7 @@ const VendorLayout = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {!hideHeader && (
-          <header className="shrink-0 z-30 bg-surface/95 backdrop-blur-md border-b border-border h-[60px] lg:h-[72px] px-3 lg:px-6 flex items-center justify-between pt-[env(safe-area-inset-top)]">
+          <header className="shrink-0 z-30 bg-surface/95 backdrop-blur-md border-b border-border h-[54px] lg:h-[72px] px-3 lg:px-6 flex items-center justify-between">
             <div className="flex items-center gap-2 lg:gap-4 min-w-0 flex-1">
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-xl text-muted-text hover:bg-surface-variant active:bg-surface-variant flex items-center shrink-0">
                 <span className="material-symbols-outlined">menu</span>
@@ -125,7 +125,7 @@ const VendorLayout = () => {
           </div>
         )}
 
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full pb-[80px] lg:pb-0 ${hideHeader ? '' : 'p-3 lg:p-6 flex flex-col'}`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full pb-[72px] lg:pb-0 ${hideHeader ? '' : 'p-3 lg:p-6 pt-2 lg:pt-6 flex flex-col'}`}>
           <Outlet />
         </main>
       </div>

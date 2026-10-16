@@ -135,9 +135,9 @@ const SearchPage = () => {
   };
 
   return (
-    <div className="animate-fade-in space-y-6 md:space-y-4 w-full px-4 md:px-0 pb-[100px] md:pb-12">
+    <div className="animate-fade-in space-y-4 w-full px-3 sm:px-4 md:px-0 pb-20 md:pb-12 pt-1 md:pt-4">
       {/* Header */}
-      <header className="sticky top-[env(safe-area-inset-top)] z-40 bg-surface/90 backdrop-blur-md pb-4 pt-2 md:pt-4 md:mx-0 md:px-0">
+      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-md pb-3 pt-0 md:pt-2 md:mx-0 md:px-0">
         <div className="md:hidden"><PageHeader title="Search" fallbackPath="/" /></div>
         <div className="hidden md:block mb-4 md:mb-2">
            <h1 className="font-headline-xl text-[40px] font-bold text-on-surface leading-tight">Discover Top Salons</h1>

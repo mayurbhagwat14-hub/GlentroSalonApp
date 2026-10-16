@@ -184,7 +184,7 @@ const ProfilePage = () => {
       {!editing && (
         <>
           {/* Header Card */}
-          <div className="bg-surface rounded-[32px] p-6 border border-border shadow-sm mt-4 md:mt-8 flex flex-col md:flex-row items-center md:items-start text-center md:text-left gap-6">
+          <div className="bg-surface rounded-[32px] p-6 border border-border shadow-sm mt-2 md:mt-6 flex flex-col md:flex-row items-center md:items-start text-center md:text-left gap-6">
             <div className="w-28 h-28 md:w-32 md:h-32 bg-gradient-to-br from-primary-400 to-accent-400 rounded-[28px] flex items-center justify-center text-white text-4xl font-bold shadow-md overflow-hidden border-[6px] border-surface shrink-0">
               {user?.avatar ? (
                 <img src={getImageUrl(user.avatar)} alt="Profile" className="w-full h-full object-cover" />

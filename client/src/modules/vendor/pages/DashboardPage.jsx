@@ -204,21 +204,21 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="space-y-6 md:space-y-8 animate-fade-in">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 md:space-y-8 animate-fade-in">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4">
         <div className="min-w-0 flex flex-col">
-          <span className="text-[14px] md:text-[16px] text-muted-text font-medium mb-0.5">Welcome back,</span>
-          <h1 className="font-headline-md text-[20px] md:text-[26px] text-on-surface font-bold truncate">
+          <span className="text-[13px] md:text-[16px] text-muted-text font-medium mb-0.5">Welcome back,</span>
+          <h1 className="font-headline-md text-[18px] sm:text-[22px] md:text-[26px] text-on-surface font-bold truncate">
             {vendor?.businessName || vendor?.name}
           </h1>
-          <p className="text-[13px] md:text-[14px] text-muted-text mt-1 truncate">
+          <p className="text-[12px] md:text-[14px] text-muted-text mt-0.5 truncate">
             Managing {salons.length} salon{salons.length !== 1 ? 's' : ''}
           </p>
         </div>
         <select 
           value={analyticsRange}
           onChange={(e) => setAnalyticsRange(e.target.value)}
-          className="px-4 py-2.5 bg-surface border border-border rounded-xl outline-none text-sm font-medium hover:border-primary/50 transition-colors cursor-pointer w-full md:w-auto"
+          className="px-3 py-2 bg-surface border border-border rounded-xl outline-none text-xs sm:text-sm font-medium hover:border-primary/50 transition-colors cursor-pointer w-full md:w-auto"
         >
           <option value="7d">Last 7 Days</option>
           <option value="30d">Last 30 Days</option>
@@ -229,7 +229,7 @@ const DashboardPage = () => {
       </div>
 
       {/* Stat Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-6">
         {statCards.map((stat, idx) => (
           <Link key={idx} to={stat.link} className={`bg-surface rounded-2xl p-4 md:p-5 shadow-sm border border-border transition-all duration-300 hover:shadow-md hover:-translate-y-1 hover:border-primary/20 animate-slide-up-fade stagger-${(idx % 8) + 1} flex flex-col justify-between`}>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${stat.bg} ${stat.color} shrink-0`}>

@@ -79,7 +79,7 @@ const BookingListPage = () => {
   const filters = ['', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
 
   return (
-    <div className="space-y-6 md:space-y-4 animate-fade-in w-full px-4 md:px-0 pb-[100px] md:pb-12 pt-2 md:pt-4">
+    <div className="space-y-3 md:space-y-4 animate-fade-in w-full px-3 sm:px-4 md:px-0 pb-20 md:pb-12 pt-1 md:pt-4">
       <div className="md:hidden"><PageHeader title="My Bookings" fallbackPath="/" /></div>
       <div className="hidden md:flex items-center gap-4">
         {fromProfile && (
