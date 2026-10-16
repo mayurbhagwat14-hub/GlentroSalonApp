@@ -10,8 +10,18 @@ const MainLayout = ({ children }) => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
+  // Hide BottomNav & Footer on secondary flow/detail pages for proper native app experience
+  const isFlowPage = 
+    pathname.includes('/checkout') || 
+    pathname.includes('/book') || 
+    /^\/salon\/[^/]+$/.test(pathname) ||
+    /^\/chat\/.+/.test(pathname) ||
+    /^\/booking\/.+/.test(pathname);
+
   return (
-    <div className="bg-background text-on-background antialiased min-h-screen pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0 pt-[env(safe-area-inset-top)] md:pt-[calc(4.5rem+env(safe-area-inset-top))] max-w-[100vw] overflow-x-hidden flex flex-col">
+    <div className={`bg-background text-on-background antialiased min-h-screen ${
+      isFlowPage ? 'pb-0' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'
+    } md:pb-0 pt-[env(safe-area-inset-top)] md:pt-[calc(4.5rem+env(safe-area-inset-top))] max-w-[100vw] overflow-x-hidden flex flex-col`}>
       <TopNav />
 
       {/* Main Content */}
@@ -19,8 +29,8 @@ const MainLayout = ({ children }) => {
         {children || <Outlet />}
       </main>
 
-      <Footer />
-      <BottomNav />
+      {!isFlowPage && <Footer />}
+      {!isFlowPage && <BottomNav />}
     </div>
   );
 };

@@ -472,7 +472,7 @@ const SalonDetailPage = () => {
 
       {/* Sticky Bottom CTA */}
       {selectedServices.length > 0 && (
-        <div className="fixed bottom-0 left-0 w-full bg-surface border-t border-border shadow-[0_-10px_30px_rgba(109,62,168,0.08)] z-40 flex justify-center pb-[calc(53px+env(safe-area-inset-bottom))] md:pb-safe">
+        <div className="fixed bottom-0 left-0 w-full bg-surface border-t border-border shadow-[0_-10px_30px_rgba(109,62,168,0.08)] z-40 flex justify-center pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:pb-4">
           <div className="w-full max-w-container-max px-4 py-4 flex justify-between items-center bg-surface">
             <div className="flex flex-col">
               <span className="font-label-sm text-[12px] text-muted-text">{selectedServices.length} service{selectedServices.length > 1 ? 's' : ''} selected</span>

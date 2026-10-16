@@ -20,6 +20,27 @@ const platformFeeSchema = new mongoose.Schema(
       default: 30,
       min: 0,
     },
+    // ─── Service GST Configuration ──────────────────────────────────────────────
+    gstEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    gstType: {
+      type: String,
+      enum: ['PERCENTAGE', 'FIXED'],
+      default: 'PERCENTAGE',
+    },
+    gstPercentage: {
+      type: Number,
+      default: 18,
+      min: 0,
+      max: 100,
+    },
+    gstAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     // ─── Online Payment Cashback ──────────────────────────────────────────────
     onlineCashbackEnabled: {
       type: Boolean,

@@ -90,6 +90,16 @@ const CheckoutPage = () => {
     }
   }, [salon, selectedServices, date, time, serviceStaff, couponCode, packageId, packageDoc]);
 
+  const getAdjustedServicePricePaise = (s) => {
+    const basePaise = s.pricePaise !== undefined ? s.pricePaise : Math.round((s.price || 0) * 100);
+    const feePaise = previewData?.platformFeeAmountPaise || 0;
+    const totalPaise = previewData?.totalAmountPaise || 0;
+    if (!feePaise || !totalPaise) return basePaise;
+    if (selectedServices.length === 1) return basePaise + feePaise;
+    const proportion = Math.round((basePaise / totalPaise) * feePaise);
+    return basePaise + proportion;
+  };
+
   if (!salon || !date || !time || selectedServices.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -294,7 +304,7 @@ const CheckoutPage = () => {
                   <span className="font-body-md text-[16px] font-medium text-on-surface">{s.name}</span>
                   <span className="font-body-sm text-[14px] text-muted-text">{s.duration} min</span>
                 </div>
-                <span className="font-label-md text-[14px] text-on-surface">{formatPaise(s.pricePaise, s.price)}</span>
+                <span className="font-label-md text-[14px] text-on-surface">{formatPaise(getAdjustedServicePricePaise(s))}</span>
               </div>
             ))}
           </div>
@@ -345,8 +355,10 @@ const CheckoutPage = () => {
           ) : previewData && (
             <>
               <div className="flex justify-between items-center">
-                <span className="font-body-md text-[16px] text-muted-text">Original Total</span>
-                <span className="font-body-md text-[16px] text-on-surface">{formatPaise(previewData.totalAmountPaise)}</span>
+                <span className="font-body-md text-[16px] text-muted-text">Total Service Amount</span>
+                <span className="font-body-md text-[16px] text-on-surface">
+                  {formatPaise(previewData.totalServiceAmountPaise || ((previewData.totalAmountPaise || 0) + (previewData.platformFeeAmountPaise || 0)))}
+                </span>
               </div>
               {previewData.package && (
                 <div className="flex justify-between items-center text-success">
@@ -360,10 +372,10 @@ const CheckoutPage = () => {
                   <span className="font-body-md text-[16px]">-{formatPaise(previewData.couponDiscountPaise)}</span>
                 </div>
               )}
-              {previewData.platformFeeAmountPaise > 0 && (
+              {previewData.gstAmountPaise > 0 && (
                 <div className="flex justify-between items-center">
-                  <span className="font-body-md text-[16px] text-muted-text">Platform Fee</span>
-                  <span className="font-body-md text-[16px] text-on-surface">{formatPaise(previewData.platformFeeAmountPaise)}</span>
+                  <span className="font-body-md text-[16px] text-muted-text">Service GST</span>
+                  <span className="font-body-md text-[16px] text-on-surface">{formatPaise(previewData.gstAmountPaise)}</span>
                 </div>
               )}
               {previewData.wallet?.appliedPaise > 0 && (
@@ -463,7 +475,7 @@ const CheckoutPage = () => {
       </main>
 
       {/* Sticky Bottom Action */}
-      <div className="fixed bottom-0 left-0 w-full bg-surface shadow-[0px_-10px_20px_rgba(109,62,168,0.08)] px-4 pt-4 pb-[calc(1rem+53px+env(safe-area-inset-bottom))] md:pb-[calc(1rem+env(safe-area-inset-bottom))] z-40 border-t border-border/50">
+      <div className="fixed bottom-0 left-0 w-full bg-surface shadow-[0px_-10px_20px_rgba(109,62,168,0.08)] px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] z-40 border-t border-border/50">
         <div className="w-full max-w-md mx-auto">
           <button
             onClick={handleSubmit}

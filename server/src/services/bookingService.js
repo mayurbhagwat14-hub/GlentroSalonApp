@@ -225,13 +225,17 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
       coupon = await couponService.validateCoupon(couponCode, totalForCoupon);
     }
 
-    // Fetch Platform Fee configuration
+    // Fetch Platform Fee & GST configuration
     const platformFeeDoc = await PlatformFee.findOne({ isActive: true });
     const platformFeeConfig = platformFeeDoc ? {
       feeType: platformFeeDoc.feeType || 'PERCENTAGE',
       feePercentage: platformFeeDoc.feePercentage !== undefined ? platformFeeDoc.feePercentage : 5,
       feeAmount: platformFeeDoc.feeAmount !== undefined ? platformFeeDoc.feeAmount : 30,
-    } : { feeType: 'PERCENTAGE', feePercentage: 5, feeAmount: 30 };
+      gstEnabled: platformFeeDoc.gstEnabled || false,
+      gstType: platformFeeDoc.gstType || 'PERCENTAGE',
+      gstPercentage: platformFeeDoc.gstPercentage !== undefined ? platformFeeDoc.gstPercentage : 18,
+      gstAmount: platformFeeDoc.gstAmount !== undefined ? platformFeeDoc.gstAmount : 0,
+    } : { feeType: 'PERCENTAGE', feePercentage: 5, feeAmount: 30, gstEnabled: false, gstType: 'PERCENTAGE', gstPercentage: 18, gstAmount: 0 };
 
     // Check user wallet if useWallet requested
     let userWalletBalancePaise = 0;
@@ -241,9 +245,10 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
       userWalletBalancePaise = userWallet?.balancePaise || 0;
     }
 
-    // Calculate totals including platform fee & wallet
+    // Calculate totals including platform fee, GST & wallet
     const {
       totalAmountPaise,
+      totalServiceAmountPaise,
       subtotalAfterDiscountsPaise,
       discountAmountPaise,
       finalAmountPaise,
@@ -252,6 +257,11 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
       platformFeeAmountPaise,
       platformFeePercentage,
       platformFeeType,
+      gstEnabled,
+      gstType,
+      gstPercentage,
+      gstAmount,
+      gstAmountPaise,
       walletAppliedPaise,
     } = calculateBookingTotal(
       bookingServices,
@@ -342,6 +352,7 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
           pricing: {
             subtotal: totalAmountPaise / 100,
             subtotalPaise: totalAmountPaise,
+            totalServiceAmountPaise: totalServiceAmountPaise || totalAmountPaise,
             packageDiscount: packageDiscountPaise / 100,
             packageDiscountPaise,
             couponDiscount: couponDiscountPaise / 100,
@@ -351,6 +362,11 @@ const createBooking = async ({ userId, salonId, services, bookingDate, startTime
             platformFee: platformFeeAmountPaise / 100,
             platformFeePaise: platformFeeAmountPaise,
             platformFeeType: platformFeeType || 'PERCENTAGE',
+            gstEnabled: Boolean(gstEnabled),
+            gstType: gstType || 'PERCENTAGE',
+            gstPercentage: gstPercentage || 0,
+            gstAmount: gstAmount || 0,
+            gstAmountPaise: gstAmountPaise || 0,
             commissionAmount: financials.commissionPaise / 100,
             commissionAmountPaise: financials.commissionPaise,
             finalAmount: finalAmountPaise / 100,
@@ -762,7 +778,11 @@ const previewBookingTotal = async ({ userId = null, salonId, services, couponCod
     feeType: platformFeeDoc.feeType || 'PERCENTAGE',
     feePercentage: platformFeeDoc.feePercentage !== undefined ? platformFeeDoc.feePercentage : 5,
     feeAmount: platformFeeDoc.feeAmount !== undefined ? platformFeeDoc.feeAmount : 30,
-  } : { feeType: 'PERCENTAGE', feePercentage: 5, feeAmount: 30 };
+    gstEnabled: platformFeeDoc.gstEnabled || false,
+    gstType: platformFeeDoc.gstType || 'PERCENTAGE',
+    gstPercentage: platformFeeDoc.gstPercentage !== undefined ? platformFeeDoc.gstPercentage : 18,
+    gstAmount: platformFeeDoc.gstAmount !== undefined ? platformFeeDoc.gstAmount : 0,
+  } : { feeType: 'PERCENTAGE', feePercentage: 5, feeAmount: 30, gstEnabled: false, gstType: 'PERCENTAGE', gstPercentage: 18, gstAmount: 0 };
 
   // Check user wallet if userId provided
   let userWalletBalancePaise = 0;
@@ -776,6 +796,7 @@ const previewBookingTotal = async ({ userId = null, salonId, services, couponCod
 
   const {
     totalAmountPaise,
+    totalServiceAmountPaise,
     subtotalAfterDiscountsPaise,
     discountAmountPaise,
     finalAmountPaise,
@@ -785,6 +806,11 @@ const previewBookingTotal = async ({ userId = null, salonId, services, couponCod
     platformFeeAmountPaise,
     platformFeePercentage,
     platformFeeAmount,
+    gstEnabled,
+    gstType,
+    gstPercentage,
+    gstAmount,
+    gstAmountPaise,
     walletAppliedPaise,
   } = calculateBookingTotal(
     bookingServices,
@@ -812,6 +838,7 @@ const previewBookingTotal = async ({ userId = null, salonId, services, couponCod
 
   return {
     totalAmountPaise,
+    totalServiceAmountPaise,
     subtotalAfterDiscountsPaise,
     discountAmountPaise,
     finalAmountPaise,
@@ -821,6 +848,11 @@ const previewBookingTotal = async ({ userId = null, salonId, services, couponCod
     platformFeeAmountPaise,
     platformFeePercentage,
     platformFeeAmount,
+    gstEnabled,
+    gstType,
+    gstPercentage,
+    gstAmount,
+    gstAmountPaise,
     wallet: {
       availableBalancePaise: userWalletBalancePaise,
       availableBalance: userWalletBalancePaise / 100,

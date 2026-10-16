@@ -431,12 +431,15 @@ const BookingDetailPage = () => {
           </span>
         </div>
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-text-secondary">Subtotal</span><span>{formatPaise(booking.totalAmountPaise, booking.totalAmount)}</span></div>
+          <div className="flex justify-between">
+            <span className="text-text-secondary">Total Service Amount</span>
+            <span>{formatPaise((booking.pricing?.totalServiceAmountPaise || ((booking.totalAmountPaise || 0) + (booking.platformFeePaise || 0))), (booking.totalAmount || 0) + (booking.platformFee || 0))}</span>
+          </div>
           {booking.discountAmount > 0 && <div className="flex justify-between text-green-600"><span>Discount</span><span>-{formatPaise(booking.discountAmountPaise, booking.discountAmount)}</span></div>}
-          {booking.platformFee > 0 && (
+          {(booking.pricing?.gstAmountPaise > 0 || booking.pricing?.gstAmount > 0) && (
             <div className="flex justify-between text-text-secondary">
-              <span>Platform Fee</span>
-              <span>{formatPaise(booking.platformFeePaise || booking.pricing?.platformFeePaise, booking.platformFee)}</span>
+              <span>Service GST</span>
+              <span>{formatPaise(booking.pricing.gstAmountPaise, booking.pricing.gstAmount)}</span>
             </div>
           )}
           {(booking.walletAmountApplied > 0 || booking.pricing?.walletAmountApplied > 0) && (

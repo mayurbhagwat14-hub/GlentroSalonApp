@@ -99,10 +99,19 @@ const calculateBookingTotal = (services, coupon = null, pkg = null, platformFeeP
   let feeType = 'PERCENTAGE';
   let feePercentage = 0;
   let feeAmount = 0;
+  let gstEnabled = false;
+  let gstType = 'PERCENTAGE';
+  let gstPercentage = 18;
+  let gstAmount = 0;
+
   if (typeof platformFeeParam === 'object' && platformFeeParam !== null) {
     feeType = platformFeeParam.feeType || 'PERCENTAGE';
     feePercentage = Number(platformFeeParam.feePercentage || 0);
     feeAmount = Number(platformFeeParam.feeAmount || 0);
+    gstEnabled = Boolean(platformFeeParam.gstEnabled);
+    gstType = platformFeeParam.gstType || 'PERCENTAGE';
+    gstPercentage = Number(platformFeeParam.gstPercentage !== undefined ? platformFeeParam.gstPercentage : 18);
+    gstAmount = Number(platformFeeParam.gstAmount || 0);
   } else {
     feePercentage = Number(platformFeeParam || 0);
   }
@@ -113,17 +122,32 @@ const calculateBookingTotal = (services, coupon = null, pkg = null, platformFeeP
   } else {
     platformFeeAmountPaise = calculatePercentagePaise(subtotalAfterDiscountsPaise, feePercentage);
   }
+
+  // Total Service Amount includes original services plus platform fee merged
+  const totalServiceAmountPaise = originalTotalPaise + platformFeeAmountPaise;
+
+  // 5. Calculate Service GST if enabled by Admin
+  let gstAmountPaise = 0;
+  if (gstEnabled) {
+    if (gstType === 'FIXED') {
+      gstAmountPaise = Math.round(gstAmount * 100);
+    } else {
+      const taxableAmountPaise = Math.max(0, subtotalAfterDiscountsPaise + platformFeeAmountPaise);
+      gstAmountPaise = calculatePercentagePaise(taxableAmountPaise, gstPercentage);
+    }
+  }
   
-  // 5. Apply wallet balance deduction if requested
-  const rawBeforeWalletPaise = subtotalAfterDiscountsPaise + platformFeeAmountPaise;
+  // 6. Apply wallet balance deduction if requested
+  const rawBeforeWalletPaise = subtotalAfterDiscountsPaise + platformFeeAmountPaise + gstAmountPaise;
   const actualWalletDeductedPaise = Math.min(walletAppliedPaise || 0, rawBeforeWalletPaise);
   const rawFinalAmountPaise = Math.max(0, rawBeforeWalletPaise - actualWalletDeductedPaise);
 
-  // 6. Apply Final Customer Rounding Business Rule (Round to nearest whole Rupee)
+  // 7. Apply Final Customer Rounding Business Rule (Round to nearest whole Rupee)
   const finalAmountPaise = roundToNearestRupeePaise(rawFinalAmountPaise);
 
   return {
     totalAmountPaise: originalTotalPaise,
+    totalServiceAmountPaise,
     subtotalAfterDiscountsPaise,
     discountAmountPaise: totalDiscountPaise,
     couponDiscountPaise,
@@ -132,6 +156,11 @@ const calculateBookingTotal = (services, coupon = null, pkg = null, platformFeeP
     platformFeePercentage: feePercentage,
     platformFeeAmount: feeAmount,
     platformFeeAmountPaise,
+    gstEnabled,
+    gstType,
+    gstPercentage,
+    gstAmount,
+    gstAmountPaise,
     walletAppliedPaise: actualWalletDeductedPaise,
     finalAmountPaise, // Authoritative final payable amount
   };

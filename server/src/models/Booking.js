@@ -100,6 +100,12 @@ const bookingSchema = new mongoose.Schema(
       platformFee: { type: Number, default: 0 },       // Platform fee (charged on top)
       platformFeePaise: { type: Number },
       platformFeeType: { type: String, enum: ['PERCENTAGE', 'FIXED'], default: 'PERCENTAGE' },
+      totalServiceAmountPaise: { type: Number },
+      gstEnabled: { type: Boolean, default: false },
+      gstType: { type: String, enum: ['PERCENTAGE', 'FIXED'], default: 'PERCENTAGE' },
+      gstPercentage: { type: Number, default: 0 },
+      gstAmount: { type: Number, default: 0 },
+      gstAmountPaise: { type: Number, default: 0 },
       commissionAmount: { type: Number, default: 0 },  // Commission (deducted from vendor)
       commissionAmountPaise: { type: Number },
       finalAmount: { type: Number, default: 0 },       // What customer pays

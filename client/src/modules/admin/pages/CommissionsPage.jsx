@@ -23,6 +23,14 @@ const CommissionsPage = () => {
     amount: 20,
   });
 
+  // GST Settings state
+  const [gstPolicy, setGstPolicy] = useState({
+    enabled: false,
+    type: 'PERCENTAGE',
+    percentage: 18,
+    amount: 0,
+  });
+
   // Call Policy state
   const [callPolicy, setCallPolicy] = useState({
     callEnabled: true,
@@ -90,6 +98,14 @@ const CommissionsPage = () => {
           amount: fee.cashbackAmount !== undefined ? fee.cashbackAmount : 20,
         });
 
+        // Load GST policy
+        setGstPolicy({
+          enabled: Boolean(fee.gstEnabled),
+          type: fee.gstType || 'PERCENTAGE',
+          percentage: fee.gstPercentage !== undefined ? fee.gstPercentage : 18,
+          amount: fee.gstAmount !== undefined ? fee.gstAmount : 0,
+        });
+
         // Load call policy
         setCallPolicy({
           callEnabled: fee.callEnabled !== undefined ? fee.callEnabled : true,
@@ -122,6 +138,10 @@ const CommissionsPage = () => {
         feeType,
         feePercentage: Number(feeForm),
         feeAmount: Number(feeAmountForm),
+        gstEnabled: gstPolicy.enabled,
+        gstType: gstPolicy.type,
+        gstPercentage: Number(gstPolicy.percentage),
+        gstAmount: Number(gstPolicy.amount),
         onlineCashbackEnabled: cashbackPolicy.enabled,
         cashbackType: cashbackPolicy.type,
         cashbackPercentage: Number(cashbackPolicy.percentage),
@@ -401,6 +421,88 @@ const CommissionsPage = () => {
                         className="w-28 pl-3 pr-8 py-2 rounded-xl bg-surface border border-border text-on-surface text-center font-bold text-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">%</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Service GST Settings ────────────────────────────────────────── */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/5 to-teal-500/5 border border-emerald-500/20 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-on-surface flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[20px] text-emerald-600">account_balance</span>
+                    Service GST (Taxes)
+                  </h4>
+                  <p className="text-xs text-muted-text mt-0.5">
+                    GST percentage/amount adjusted by admin and displayed to customer as "Service GST"
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGstPolicy(p => ({ ...p, enabled: !p.enabled }))}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    gstPolicy.enabled ? 'bg-emerald-600' : 'bg-border'
+                  }`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                    gstPolicy.enabled ? 'left-7' : 'left-1'
+                  }`} />
+                </button>
+              </div>
+
+              {gstPolicy.enabled && (
+                <div className="flex flex-col sm:flex-row gap-4 items-center justify-between pt-2 border-t border-emerald-500/10">
+                  <div className="flex items-center bg-surface-variant p-1 rounded-xl border border-border">
+                    <button
+                      type="button"
+                      onClick={() => setGstPolicy(p => ({ ...p, type: 'PERCENTAGE' }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        gstPolicy.type === 'PERCENTAGE'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-muted-text hover:text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">percent</span>
+                      Percentage (%)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGstPolicy(p => ({ ...p, type: 'FIXED' }))}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        gstPolicy.type === 'FIXED'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-muted-text hover:text-on-surface'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">currency_rupee</span>
+                      Fixed Rupee (₹)
+                    </button>
+                  </div>
+
+                  {gstPolicy.type === 'PERCENTAGE' ? (
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={gstPolicy.percentage}
+                        onChange={e => setGstPolicy(p => ({ ...p, percentage: e.target.value }))}
+                        className="w-24 pl-3 pr-8 py-2 rounded-xl bg-surface border border-border text-on-surface text-center font-bold text-lg focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">%</span>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-text font-bold">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={gstPolicy.amount}
+                        onChange={e => setGstPolicy(p => ({ ...p, amount: e.target.value }))}
+                        className="w-28 pl-7 pr-3 py-2 rounded-xl bg-surface border border-border text-on-surface text-center font-bold text-lg focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none transition-all"
+                      />
                     </div>
                   )}
                 </div>

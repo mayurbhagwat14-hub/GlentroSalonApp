@@ -88,6 +88,10 @@ const getPublicPlatformFee = async (req, res, next) => {
         feeType: fee.feeType || 'PERCENTAGE',
         feePercentage: fee.feePercentage,
         feeAmount: fee.feeAmount !== undefined ? fee.feeAmount : 30,
+        gstEnabled: fee.gstEnabled || false,
+        gstType: fee.gstType || 'PERCENTAGE',
+        gstPercentage: fee.gstPercentage !== undefined ? fee.gstPercentage : 18,
+        gstAmount: fee.gstAmount !== undefined ? fee.gstAmount : 0,
         onlineCashbackEnabled: fee.onlineCashbackEnabled || false,
         cashbackType: fee.cashbackType || 'FIXED',
         cashbackPercentage: fee.cashbackPercentage || 5,
@@ -108,6 +112,7 @@ const updatePlatformFee = async (req, res, next) => {
   try {
     const {
       feeType, feePercentage, feeAmount,
+      gstEnabled, gstType, gstPercentage, gstAmount,
       onlineCashbackEnabled, cashbackType, cashbackPercentage, cashbackAmount,
       cancellationFeePercentage, adminCommissionPercentage,
       // New call policy fields
@@ -122,6 +127,10 @@ const updatePlatformFee = async (req, res, next) => {
       if (feeType !== undefined) fee.feeType = feeType;
       if (feePercentage !== undefined) fee.feePercentage = feePercentage;
       if (feeAmount !== undefined) fee.feeAmount = feeAmount;
+      if (gstEnabled !== undefined) fee.gstEnabled = gstEnabled;
+      if (gstType !== undefined) fee.gstType = gstType;
+      if (gstPercentage !== undefined) fee.gstPercentage = gstPercentage;
+      if (gstAmount !== undefined) fee.gstAmount = gstAmount;
       if (onlineCashbackEnabled !== undefined) fee.onlineCashbackEnabled = onlineCashbackEnabled;
       if (cashbackType !== undefined) fee.cashbackType = cashbackType;
       if (cashbackPercentage !== undefined) fee.cashbackPercentage = cashbackPercentage;
@@ -143,6 +152,10 @@ const updatePlatformFee = async (req, res, next) => {
         feeType: feeType || 'PERCENTAGE',
         feePercentage: feePercentage !== undefined ? feePercentage : 5,
         feeAmount: feeAmount !== undefined ? feeAmount : 30,
+        gstEnabled: gstEnabled !== undefined ? gstEnabled : false,
+        gstType: gstType || 'PERCENTAGE',
+        gstPercentage: gstPercentage !== undefined ? gstPercentage : 18,
+        gstAmount: gstAmount !== undefined ? gstAmount : 0,
         onlineCashbackEnabled: onlineCashbackEnabled !== undefined ? onlineCashbackEnabled : false,
         cashbackType: cashbackType || 'FIXED',
         cashbackPercentage: cashbackPercentage !== undefined ? cashbackPercentage : 5,
