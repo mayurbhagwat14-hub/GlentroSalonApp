@@ -7,7 +7,7 @@ module.exports = {
   MONGO_URI: process.env.MONGO_URI || 'mongodb://localhost:27017/salon-booking',
   JWT_SECRET: process.env.JWT_SECRET || 'default_secret',
   JWT_EXPIRE: process.env.JWT_EXPIRE || '30d',
-  CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+  CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173,https://glentro.in,https://www.glentro.in',
   SOCKET_URL: process.env.SOCKET_URL || 'http://localhost:5000',
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || '',
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || '',
