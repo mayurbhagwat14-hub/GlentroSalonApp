@@ -41,4 +41,10 @@ module.exports = {
   REDIS_ENABLED: process.env.REDIS_ENABLED === 'true',
   REDIS_URL: process.env.REDIS_URL || '',
   REDIS_CACHE_TTL_SECONDS: parseInt(process.env.REDIS_CACHE_TTL_SECONDS) || 300,
+
+  // SMS India Hub
+  SMS_INDIA_HUB_USERNAME: process.env.SMS_INDIA_HUB_USERNAME || 'GLENTRO',
+  SMS_INDIA_HUB_API_KEY: process.env.SMS_INDIA_HUB_API_KEY || '',
+  SMS_INDIA_HUB_SENDER_ID: process.env.SMS_INDIA_HUB_SENDER_ID || 'BGADEC',
+  SMS_INDIA_HUB_DLT_TEMPLATE_ID: process.env.SMS_INDIA_HUB_DLT_TEMPLATE_ID || '',
 };

@@ -1,6 +1,9 @@
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Vendor = require('../models/Vendor');
+const OTP = require('../models/OTP');
 const generateToken = require('../utils/generateToken');
+const { cleanPhoneNumber, sendOtpSMS } = require('../services/smsService');
 
 const saveFcmTokenToDoc = async (modelInstance, body) => {
   try {
@@ -253,6 +256,159 @@ const getProfile = async (req, res, next) => {
   }
 };
 
+// @desc    Send OTP to registered phone number for login
+// @route   POST /api/auth/send-otp
+const sendLoginOTP = async (req, res, next) => {
+  try {
+    const { phone, role = 'user' } = req.body;
+    if (!phone) {
+      return res.status(400).json({ success: false, message: 'Phone number is required' });
+    }
+
+    const cleanedPhone = cleanPhoneNumber(phone);
+    if (!cleanedPhone || cleanedPhone.length !== 10) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid 10-digit mobile number' });
+    }
+
+    const phoneRegex = new RegExp(cleanedPhone + '$');
+    let account = null;
+
+    if (role === 'vendor') {
+      account = await Vendor.findOne({ phone: { $regex: phoneRegex } });
+      if (!account) {
+        return res.status(404).json({ success: false, message: 'No salon partner found with this mobile number. Please register first.' });
+      }
+    } else {
+      account = await User.findOne({ phone: { $regex: phoneRegex } });
+      if (!account) {
+        return res.status(404).json({ success: false, message: 'No user account found with this mobile number. Please register first.' });
+      }
+    }
+
+    if (!account.isActive) {
+      return res.status(401).json({ success: false, message: 'Account has been deactivated' });
+    }
+
+    if (account.accountStatus === 'deleted') {
+      return res.status(403).json({
+        success: false,
+        code: 'ACCOUNT_DELETED',
+        message: 'Your account has been deleted. You can request account recovery if you want to restore it.'
+      });
+    }
+
+    // Generate random 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    // Invalidate prior login OTPs for this phone and role
+    await OTP.deleteMany({ phone: cleanedPhone, accountType: role, purpose: 'login' });
+
+    // Store new OTP
+    await OTP.create({
+      phone: cleanedPhone,
+      accountType: role,
+      purpose: 'login',
+      otpHash,
+      expiresAt,
+    });
+
+    // Send SMS
+    await sendOtpSMS(cleanedPhone, otp);
+
+    const maskedPhone = `+91 ${cleanedPhone.slice(0, 2)}******${cleanedPhone.slice(8)}`;
+    res.json({
+      success: true,
+      message: `OTP sent on registered number: ${maskedPhone}`,
+      data: { phone: cleanedPhone, maskedPhone },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify OTP and log in
+// @route   POST /api/auth/verify-login-otp
+const verifyLoginOTP = async (req, res, next) => {
+  try {
+    const { phone, otp, role = 'user' } = req.body;
+    if (!phone || !otp) {
+      return res.status(400).json({ success: false, message: 'Phone number and OTP are required' });
+    }
+
+    const cleanedPhone = cleanPhoneNumber(phone);
+    const otpRecord = await OTP.findOne({
+      phone: cleanedPhone,
+      accountType: role,
+      purpose: 'login',
+      expiresAt: { $gt: new Date() },
+      usedAt: null,
+    }).sort({ createdAt: -1 });
+
+    if (!otpRecord) {
+      return res.status(400).json({ success: false, message: 'OTP has expired or is invalid. Please request a new OTP.' });
+    }
+
+    if (otpRecord.attempts >= 5) {
+      return res.status(400).json({ success: false, message: 'Too many failed attempts. Please request a new OTP.' });
+    }
+
+    const isMatch = await bcrypt.compare(String(otp).trim(), otpRecord.otpHash);
+    if (!isMatch) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      return res.status(400).json({ success: false, message: 'Invalid OTP. Please check and try again.' });
+    }
+
+    // Mark as used
+    otpRecord.usedAt = new Date();
+    otpRecord.verifiedAt = new Date();
+    await otpRecord.save();
+
+    const phoneRegex = new RegExp(cleanedPhone + '$');
+    if (role === 'vendor') {
+      const vendor = await Vendor.findOne({ phone: { $regex: phoneRegex } });
+      if (!vendor) {
+        return res.status(404).json({ success: false, message: 'Vendor account not found' });
+      }
+      if (!vendor.isActive) {
+        return res.status(401).json({ success: false, message: 'Account has been deactivated' });
+      }
+
+      await saveFcmTokenToDoc(vendor, req.body);
+      const token = generateToken(vendor._id, 'vendor');
+
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        data: { vendor, token },
+      });
+    } else {
+      const user = await User.findOne({ phone: { $regex: phoneRegex } });
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User account not found' });
+      }
+      if (!user.isActive) {
+        return res.status(401).json({ success: false, message: 'Account has been deactivated' });
+      }
+
+      user.lastLogin = new Date();
+      await user.save();
+      await saveFcmTokenToDoc(user, req.body);
+      const token = generateToken(user._id, user.role);
+
+      return res.json({
+        success: true,
+        message: 'Login successful',
+        data: { user, token },
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -260,4 +416,6 @@ module.exports = {
   loginVendor,
   loginAdmin,
   getProfile,
+  sendLoginOTP,
+  verifyLoginOTP,
 };

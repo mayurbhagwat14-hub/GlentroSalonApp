@@ -12,90 +12,100 @@ export const useAuth = () => {
   return context;
 };
 
-// Clean up legacy shared auth keys from localStorage once so they don't leak across tabs
-try {
-  const legacyToken = localStorage.getItem('token');
-  const legacyUser = localStorage.getItem('user');
-  const legacyVendorToken = localStorage.getItem('vendor_token');
-  const legacyVendor = localStorage.getItem('vendor');
-  const legacyAdminToken = localStorage.getItem('admin_token');
-  const legacyAdmin = localStorage.getItem('admin');
+// Safe helper to read from localStorage or sessionStorage
+const getStoredItem = (key) => {
+  try {
+    return localStorage.getItem(key) || sessionStorage.getItem(key) || null;
+  } catch (e) {
+    return null;
+  }
+};
 
-  // Migrate to current tab's sessionStorage if empty
-  if (!sessionStorage.getItem('token') && legacyToken) {
-    sessionStorage.setItem('token', legacyToken);
-    if (legacyUser) sessionStorage.setItem('user', legacyUser);
+const getStoredJson = (key) => {
+  try {
+    const item = getStoredItem(key);
+    return item ? JSON.parse(item) : null;
+  } catch (e) {
+    return null;
   }
-  if (!sessionStorage.getItem('vendor_token') && legacyVendorToken) {
-    sessionStorage.setItem('vendor_token', legacyVendorToken);
-    if (legacyVendor) sessionStorage.setItem('vendor', legacyVendor);
-  }
-  if (!sessionStorage.getItem('admin_token') && legacyAdminToken) {
-    sessionStorage.setItem('admin_token', legacyAdminToken);
-    if (legacyAdmin) sessionStorage.setItem('admin', legacyAdmin);
-  }
-
-  // Purge shared localStorage auth keys
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-  localStorage.removeItem('vendor_token');
-  localStorage.removeItem('vendor');
-  localStorage.removeItem('admin_token');
-  localStorage.removeItem('admin');
-} catch (e) {
-  // Safe ignore in restricted environments
-}
+};
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const saved = sessionStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [vendor, setVendor] = useState(() => {
-    const saved = sessionStorage.getItem('vendor');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [admin, setAdmin] = useState(() => {
-    const saved = sessionStorage.getItem('admin');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [user, setUser] = useState(() => getStoredJson('user'));
+  const [vendor, setVendor] = useState(() => getStoredJson('vendor'));
+  const [admin, setAdmin] = useState(() => getStoredJson('admin'));
 
-  const [userToken, setUserToken] = useState(sessionStorage.getItem('token'));
-  const [vendorToken, setVendorToken] = useState(sessionStorage.getItem('vendor_token'));
-  const [adminToken, setAdminToken] = useState(sessionStorage.getItem('admin_token'));
+  const [userToken, setUserToken] = useState(() => getStoredItem('token'));
+  const [vendorToken, setVendorToken] = useState(() => getStoredItem('vendor_token'));
+  const [adminToken, setAdminToken] = useState(() => getStoredItem('admin_token'));
 
-  const [loading, setLoading] = useState(true);
+  // If we already have stored credentials, don't block the screen
+  const [loading, setLoading] = useState(false);
 
+  // Background refresh of user/vendor/admin profiles without blocking app render
   useEffect(() => {
-    const loadProfiles = async () => {
-      const promises = [];
-      if (userToken) promises.push(getUserProfile(userToken).then(r => setUser(r.data.data.user)).catch((e) => console.error('Failed to load user profile', e)));
-      if (vendorToken) promises.push(getVendorProfile(vendorToken).then(r => setVendor(r.data.data.user)).catch((e) => console.error('Failed to load vendor profile', e)));
-      if (adminToken) promises.push(getAdminProfile(adminToken).then(r => setAdmin(r.data.data.user)).catch((e) => console.error('Failed to load admin profile', e)));
-
-      await Promise.allSettled(promises);
-      setLoading(false);
+    const refreshProfiles = async () => {
+      if (userToken) {
+        getUserProfile(userToken)
+          .then(r => {
+            if (r?.data?.data?.user) {
+              setUser(r.data.data.user);
+              localStorage.setItem('user', JSON.stringify(r.data.data.user));
+            }
+          })
+          .catch((e) => console.error('Failed to sync user profile', e));
+      }
+      if (vendorToken) {
+        getVendorProfile(vendorToken)
+          .then(r => {
+            if (r?.data?.data?.user) {
+              setVendor(r.data.data.user);
+              localStorage.setItem('vendor', JSON.stringify(r.data.data.user));
+            }
+          })
+          .catch((e) => console.error('Failed to sync vendor profile', e));
+      }
+      if (adminToken) {
+        getAdminProfile(adminToken)
+          .then(r => {
+            if (r?.data?.data?.user) {
+              setAdmin(r.data.data.user);
+              localStorage.setItem('admin', JSON.stringify(r.data.data.user));
+            }
+          })
+          .catch((e) => console.error('Failed to sync admin profile', e));
+      }
     };
-    loadProfiles();
+    refreshProfiles();
   }, [userToken, vendorToken, adminToken]);
 
-  // Tab-isolated login function: saves credentials and saves FCM token to database
+  // Persistent login function: saves credentials to localStorage and registers FCM token
   const setAuth = useCallback((role, userData, token) => {
-    if (role === 'user') {
-      sessionStorage.setItem('token', token);
-      sessionStorage.setItem('user', JSON.stringify(userData));
-      setUserToken(token);
-      setUser(userData);
-    } else if (role === 'vendor') {
-      sessionStorage.setItem('vendor_token', token);
-      sessionStorage.setItem('vendor', JSON.stringify(userData));
-      setVendorToken(token);
-      setVendor(userData);
-    } else if (role === 'admin') {
-      sessionStorage.setItem('admin_token', token);
-      sessionStorage.setItem('admin', JSON.stringify(userData));
-      setAdminToken(token);
-      setAdmin(userData);
+    try {
+      if (role === 'user') {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        setUserToken(token);
+        setUser(userData);
+      } else if (role === 'vendor') {
+        localStorage.setItem('vendor_token', token);
+        localStorage.setItem('vendor', JSON.stringify(userData));
+        sessionStorage.setItem('vendor_token', token);
+        sessionStorage.setItem('vendor', JSON.stringify(userData));
+        setVendorToken(token);
+        setVendor(userData);
+      } else if (role === 'admin') {
+        localStorage.setItem('admin_token', token);
+        localStorage.setItem('admin', JSON.stringify(userData));
+        sessionStorage.setItem('admin_token', token);
+        sessionStorage.setItem('admin', JSON.stringify(userData));
+        setAdminToken(token);
+        setAdmin(userData);
+      }
+    } catch (e) {
+      console.warn('Storage set error:', e);
     }
 
     // Immediately trigger FCM token registration on login/signup for user or vendor
@@ -119,7 +129,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Tab-isolated logout function: removes FCM token from DB and removes credentials from session
+  // Explicit logout function: removes FCM token from DB and purges credentials from storage
   const logout = useCallback(async (role) => {
     const savedFcmToken = localStorage.getItem('glentro_fcm_token');
     if (savedFcmToken) {
@@ -134,23 +144,35 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    if (role === 'user') {
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-      sessionStorage.removeItem('location_prompt_dismissed');
-      setUserToken(null);
-      setUser(null);
-    } else if (role === 'vendor') {
-      sessionStorage.removeItem('vendor_token');
-      sessionStorage.removeItem('vendor');
-      sessionStorage.removeItem('vendor_selected_salon');
-      setVendorToken(null);
-      setVendor(null);
-    } else if (role === 'admin') {
-      sessionStorage.removeItem('admin_token');
-      sessionStorage.removeItem('admin');
-      setAdminToken(null);
-      setAdmin(null);
+    try {
+      if (role === 'user') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('location_prompt_dismissed');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('location_prompt_dismissed');
+        setUserToken(null);
+        setUser(null);
+      } else if (role === 'vendor') {
+        localStorage.removeItem('vendor_token');
+        localStorage.removeItem('vendor');
+        localStorage.removeItem('vendor_selected_salon');
+        sessionStorage.removeItem('vendor_token');
+        sessionStorage.removeItem('vendor');
+        sessionStorage.removeItem('vendor_selected_salon');
+        setVendorToken(null);
+        setVendor(null);
+      } else if (role === 'admin') {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin');
+        sessionStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin');
+        setAdminToken(null);
+        setAdmin(null);
+      }
+    } catch (e) {
+      console.warn('Storage remove error:', e);
     }
   }, []);
 

@@ -3,6 +3,8 @@ import api from '../../../services/api/axiosInstance';
 // Auth & Profile
 export const loginVendor = (data) => api.post('/auth/login/vendor', data);
 export const registerVendor = (data) => api.post('/auth/register/vendor', data);
+export const sendOtpAPI = (data) => api.post('/auth/send-otp', data);
+export const verifyLoginOtpAPI = (data) => api.post('/auth/verify-login-otp', data);
 export const getProfile = (token) => api.get('/auth/profile', token ? { headers: { Authorization: `Bearer ${token}` } } : {});
 export const updateProfile = (data) => api.put('/vendors/profile', data);
 export const getVendorProfile = () => api.get('/vendors/me');

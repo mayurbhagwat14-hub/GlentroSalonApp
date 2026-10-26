@@ -1,14 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
-import { loginUser } from '../../../../services/api/authApi';
+import { loginUser, sendOtpAPI, verifyLoginOtpAPI } from '../../../../services/api/authApi';
 import { requestAccountRecovery } from '../../services/userApi';
 import { useSettings } from '../../../../context/SettingContext';
 import { getImageUrl } from '../../../../utils/imageUtils';
 import LoginSlider from '../../components/LoginSlider';
 
 const LoginPage = () => {
+  const [loginMode, setLoginMode] = useState('password'); // 'password' | 'otp'
   const [formData, setFormData] = useState({ email: '', password: '' });
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [maskedPhone, setMaskedPhone] = useState('');
+  const [otpStep, setOtpStep] = useState('phone'); // 'phone' | 'otp'
+  const [countdown, setCountdown] = useState(60);
+  const [canResend, setCanResend] = useState(false);
+
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,9 +43,57 @@ const LoginPage = () => {
     }
   }, [user, navigate, state]);
 
+  // Resend Countdown Timer
+  useEffect(() => {
+    let timer = null;
+    if (otpStep === 'otp' && countdown > 0) {
+      timer = setInterval(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
+    } else if (countdown === 0) {
+      setCanResend(true);
+    }
+    return () => clearInterval(timer);
+  }, [otpStep, countdown]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
+  };
+
+  const handleAuthSuccess = (userData, token) => {
+    setAuth('user', userData, token);
+
+    // Check if user was redirected from booking page (date/time selection)
+    const pendingBookingReturnStr = sessionStorage.getItem('pendingBookingReturn');
+    if (pendingBookingReturnStr) {
+      try {
+        const { path, state: bookingState } = JSON.parse(pendingBookingReturnStr);
+        sessionStorage.removeItem('pendingBookingReturn');
+        navigate(path, { state: bookingState, replace: true });
+        return;
+      } catch (e) {
+        console.error('Failed to parse pendingBookingReturn', e);
+        sessionStorage.removeItem('pendingBookingReturn');
+      }
+    }
+
+    const pendingBookingStr = sessionStorage.getItem('pendingBooking');
+    if (pendingBookingStr) {
+      try {
+        const pendingBooking = JSON.parse(pendingBookingStr);
+        navigate(`/salon/${pendingBooking.salon}/checkout`, { state: pendingBooking, replace: true });
+        return;
+      } catch (e) {
+        console.error('Failed to parse pending booking', e);
+      }
+    }
+
+    if (state?.from) {
+      navigate(state.from, { state: state.bookingState, replace: true });
+    } else {
+      navigate('/');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -52,38 +108,7 @@ const LoginPage = () => {
         payload.fcmtoken = savedToken;
       }
       const res = await loginUser(payload);
-      setAuth('user', res.data.data.user, res.data.data.token);
-
-      // Check if user was redirected from booking page (date/time selection)
-      const pendingBookingReturnStr = sessionStorage.getItem('pendingBookingReturn');
-      if (pendingBookingReturnStr) {
-        try {
-          const { path, state: bookingState } = JSON.parse(pendingBookingReturnStr);
-          sessionStorage.removeItem('pendingBookingReturn');
-          navigate(path, { state: bookingState, replace: true });
-          return;
-        } catch (e) {
-          console.error('Failed to parse pendingBookingReturn', e);
-          sessionStorage.removeItem('pendingBookingReturn');
-        }
-      }
-
-      const pendingBookingStr = sessionStorage.getItem('pendingBooking');
-      if (pendingBookingStr) {
-        try {
-          const pendingBooking = JSON.parse(pendingBookingStr);
-          navigate(`/salon/${pendingBooking.salon}/checkout`, { state: pendingBooking, replace: true });
-          return;
-        } catch (e) {
-          console.error('Failed to parse pending booking', e);
-        }
-      }
-
-      if (state?.from) {
-        navigate(state.from, { state: state.bookingState, replace: true });
-      } else {
-        navigate('/');
-      }
+      handleAuthSuccess(res.data.data.user, res.data.data.token);
     } catch (err) {
       if (err.response?.data?.code === 'ACCOUNT_DELETED') {
         setError(err.response.data.message);
@@ -95,6 +120,52 @@ const LoginPage = () => {
         setError(err.response?.data?.message || 'Login failed. Please try again.');
         setShowRecoveryForm(false);
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOTP = async (e) => {
+    if (e?.preventDefault) e.preventDefault();
+    const cleanDigits = phone.replace(/\D/g, '');
+    if (!cleanDigits || cleanDigits.length < 10) {
+      return setError('Please enter a valid 10-digit mobile number');
+    }
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await sendOtpAPI({ phone: cleanDigits, role: 'user' });
+      setMaskedPhone(res.data?.data?.maskedPhone || `+91 ${cleanDigits.slice(0, 2)}******${cleanDigits.slice(8)}`);
+      setOtpStep('otp');
+      setCountdown(60);
+      setCanResend(false);
+      setSuccess(res.data?.message || 'OTP sent on registered number');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send OTP. Please check your registered number.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    const cleanDigits = phone.replace(/\D/g, '');
+    if (!otp || otp.trim().length < 4) {
+      return setError('Please enter the OTP sent to your phone');
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const savedToken = localStorage.getItem('glentro_fcm_token');
+      const payload = { phone: cleanDigits, otp: otp.trim(), role: 'user', platform: 'web' };
+      if (savedToken) {
+        payload.fcmtoken = savedToken;
+      }
+      const res = await verifyLoginOtpAPI(payload);
+      handleAuthSuccess(res.data.data.user, res.data.data.token);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid OTP. Please check and try again.');
     } finally {
       setLoading(false);
     }
@@ -242,68 +313,226 @@ const LoginPage = () => {
             </div>
           )}
 
+          {/* Login Mode Tabs: Password vs OTP */}
+          {!showRecoveryForm && (
+            <div className="flex p-1 mb-6 bg-gray-100/90 rounded-2xl border border-gray-200/60">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode('password');
+                  setError('');
+                  setSuccess('');
+                }}
+                className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                  loginMode === 'password'
+                    ? 'bg-white text-[#2D0B5A] shadow-sm border border-black/5'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">lock</span>
+                Password
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode('otp');
+                  setError('');
+                  setSuccess('');
+                }}
+                className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                  loginMode === 'otp'
+                    ? 'bg-white text-[#2D0B5A] shadow-sm border border-black/5'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">sms</span>
+                Login with OTP
+              </button>
+            </div>
+          )}
+
           {/* Form */}
           {!showRecoveryForm ? (
-            <form onSubmit={handleSubmit} className="space-y-5">
-
-              {/* Email Input Group */}
-              <div>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">mail</span>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Email / Mobile Number"
-                    required
-                    className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A1578]/20 focus:border-[#4A1578] transition-all shadow-sm"
-                  />
+            loginMode === 'password' ? (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Email Input Group */}
+                <div>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">mail</span>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="Email / Mobile Number"
+                      required
+                      className="w-full pl-12 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A1578]/20 focus:border-[#4A1578] transition-all shadow-sm"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Password Input Group */}
-              <div>
-                <div className="flex justify-between items-center mb-1.5 px-1">
-                  <label className="text-[13px] font-medium text-gray-700">Password</label>
-                  <Link to="/forgot-password" className="text-[13px] font-medium text-[#4A1578] hover:text-[#2D0B5A] transition-colors">
-                    Forgot Password?
-                  </Link>
+                {/* Password Input Group */}
+                <div>
+                  <div className="flex justify-between items-center mb-1.5 px-1">
+                    <label className="text-[13px] font-medium text-gray-700">Password</label>
+                    <Link to="/forgot-password" className="text-[13px] font-medium text-[#4A1578] hover:text-[#2D0B5A] transition-colors">
+                      Forgot Password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">lock</span>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Password"
+                      required
+                      className="w-full pl-12 pr-12 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A1578]/20 focus:border-[#4A1578] transition-all shadow-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    >
+                      <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="relative">
-                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">lock</span>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Password"
-                    required
-                    className="w-full pl-12 pr-12 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A1578]/20 focus:border-[#4A1578] transition-all shadow-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                  >
-                    <span className="material-symbols-outlined text-[20px]">{showPassword ? 'visibility_off' : 'visibility'}</span>
-                  </button>
-                </div>
-              </div>
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-[#31105D] to-[#8854C0] text-white font-semibold text-[15px] shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Signing In...</>
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-[#31105D] to-[#8854C0] text-white font-semibold text-[15px] shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-70 disabled:pointer-events-none flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Signing In...</>
+                  ) : (
+                    'Continue'
+                  )}
+                </button>
+              </form>
+            ) : (
+              /* OTP Login Flow */
+              <div className="space-y-5 animate-fade-in">
+                {otpStep === 'phone' ? (
+                  <form onSubmit={handleSendOTP} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 px-0.5">
+                        Registered Mobile Number
+                      </label>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500 select-none">
+                          +91
+                        </span>
+                        <input
+                          type="tel"
+                          value={phone}
+                          maxLength={10}
+                          onChange={(e) => {
+                            setPhone(e.target.value.replace(/\D/g, ''));
+                            setError('');
+                          }}
+                          placeholder="Enter 10-digit number"
+                          required
+                          className="w-full pl-14 pr-4 py-3.5 bg-white border border-gray-200 rounded-xl text-gray-800 text-sm tracking-wider font-medium focus:outline-none focus:ring-2 focus:ring-[#4A1578]/20 focus:border-[#4A1578] transition-all shadow-sm"
+                        />
+                      </div>
+                      <p className="text-[12px] text-gray-500 mt-1.5 px-1">
+                        We will send a 6-digit verification OTP on this registered number.
+                      </p>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || phone.length < 10}
+                      className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-[#31105D] to-[#8854C0] text-white font-semibold text-[15px] shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-60 disabled:pointer-events-none flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Sending OTP...</>
+                      ) : (
+                        <>Send OTP <span className="material-symbols-outlined text-[18px]">arrow_forward</span></>
+                      )}
+                    </button>
+                  </form>
                 ) : (
-                  'Continue'
+                  <form onSubmit={handleVerifyOTP} className="space-y-4">
+                    {/* OTP Sent Banner */}
+                    <div className="p-3.5 rounded-xl bg-purple-50/80 border border-purple-100 flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-[#2D0B5A]">
+                        <span className="material-symbols-outlined text-[20px] text-[#8854C0]">mark_chat_unread</span>
+                        <div>
+                          <div className="font-semibold">OTP sent on registered number:</div>
+                          <div className="text-gray-600 font-medium">{maskedPhone}</div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpStep('phone');
+                          setOtp('');
+                          setError('');
+                        }}
+                        className="text-xs font-semibold text-[#8854C0] hover:text-[#2D0B5A] underline py-0.5"
+                      >
+                        Change
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1.5 px-0.5">
+                        Enter 6-Digit OTP
+                      </label>
+                      <input
+                        type="text"
+                        value={otp}
+                        maxLength={6}
+                        onChange={(e) => {
+                          setOtp(e.target.value.replace(/\D/g, ''));
+                          setError('');
+                        }}
+                        placeholder="••••••"
+                        autoFocus
+                        required
+                        className="w-full text-center py-3.5 px-4 bg-white border border-gray-200 rounded-xl text-gray-900 text-2xl font-mono tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-[#4A1578]/20 focus:border-[#4A1578] transition-all shadow-sm"
+                      />
+                    </div>
+
+                    {/* Resend Countdown */}
+                    <div className="flex items-center justify-between text-xs px-1 text-gray-500">
+                      <span>Didn't receive the OTP?</span>
+                      {canResend ? (
+                        <button
+                          type="button"
+                          onClick={handleSendOTP}
+                          disabled={loading}
+                          className="font-bold text-[#4A1578] hover:underline cursor-pointer"
+                        >
+                          Resend OTP
+                        </button>
+                      ) : (
+                        <span className="font-medium text-gray-400">
+                          Resend in <span className="font-bold text-gray-600">{countdown}s</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading || otp.length < 4}
+                      className="w-full py-3.5 mt-2 rounded-xl bg-gradient-to-r from-[#31105D] to-[#8854C0] text-white font-semibold text-[15px] shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-60 disabled:pointer-events-none flex items-center justify-center gap-2"
+                    >
+                      {loading ? (
+                        <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Verifying...</>
+                      ) : (
+                        <>Verify & Login <span className="material-symbols-outlined text-[18px]">verified</span></>
+                      )}
+                    </button>
+                  </form>
                 )}
-              </button>
-            </form>
+              </div>
+            )
           ) : (
             <form onSubmit={handleRecoverySubmit} className="space-y-5 animate-fade-in">
               <p className="text-sm text-gray-600 leading-relaxed mb-2 text-center">

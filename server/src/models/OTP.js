@@ -3,8 +3,18 @@ const mongoose = require('mongoose');
 const otpSchema = new mongoose.Schema({
   email: {
     type: String,
-    required: true,
+    sparse: true,
     index: true,
+  },
+  phone: {
+    type: String,
+    sparse: true,
+    index: true,
+  },
+  purpose: {
+    type: String,
+    enum: ['password_reset', 'login', 'registration'],
+    default: 'login',
   },
   accountType: {
     type: String,

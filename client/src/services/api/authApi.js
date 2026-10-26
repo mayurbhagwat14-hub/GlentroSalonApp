@@ -13,3 +13,8 @@ export const sendTestNotification = () => api.post('/users/test-notification');
 export const forgotPasswordAPI = (data) => api.post('/auth/forgot-password', data);
 export const verifyOTPAPI = (data) => api.post('/auth/verify-otp', data);
 export const resetPasswordAPI = (data) => api.post('/auth/reset-password', data);
+
+// OTP Login (User & Vendor)
+export const sendOtpAPI = (data) => api.post('/auth/send-otp', data);
+export const verifyLoginOtpAPI = (data) => api.post('/auth/verify-login-otp', data);
+
