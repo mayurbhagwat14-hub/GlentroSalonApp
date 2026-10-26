@@ -7,14 +7,22 @@ const SettingContext = createContext();
 export const useSettings = () => useContext(SettingContext);
 
 export const SettingProvider = ({ children }) => {
-  const [settings, setSettings] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState(() => {
+    try {
+      const cached = localStorage.getItem('glentro_app_settings');
+      return cached ? JSON.parse(cached) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+  const [loading, setLoading] = useState(!settings || Object.keys(settings).length === 0);
 
   const fetchSettings = async () => {
     try {
       const res = await getSettings();
-      if (res.data?.success) {
+      if (res.data?.success && res.data.data) {
         setSettings(res.data.data);
+        localStorage.setItem('glentro_app_settings', JSON.stringify(res.data.data));
       }
     } catch (error) {
       console.error('Failed to fetch settings:', error);
