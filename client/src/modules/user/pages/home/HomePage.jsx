@@ -120,11 +120,11 @@ const HomePage = () => {
     try {
       let salonPromise;
       if (selectedLocation?.lat && selectedLocation?.lng) {
-        salonPromise = getNearbySalons({ lat: selectedLocation.lat, lng: selectedLocation.lng, limit: 10 });
+        salonPromise = getNearbySalons({ lat: selectedLocation.lat, lng: selectedLocation.lng, limit: 10 }).catch(() => ({ data: { data: { salons: [] } } }));
         setSalonListTitle('Nearby Salons');
       } else {
-        salonPromise = getSalons({ city: selectedLocation?.city, limit: 10 });
-        setSalonListTitle('Popular Salons in ' + (selectedLocation?.city || 'Your Area'));
+        salonPromise = getSalons({ city: selectedLocation?.city, limit: 10 }).catch(() => ({ data: { data: { salons: [] } } }));
+        setSalonListTitle(selectedLocation?.city ? 'Popular Salons in ' + selectedLocation.city : 'Popular Salons');
       }
 
       const offersParams = { limit: 10, checkValidity: 'true', status: 'ACTIVE', isActive: 'true' };
@@ -136,30 +136,40 @@ const HomePage = () => {
       }
 
       const [catRes, salonRes, serviceRes, bannerRes, offersRes] = await Promise.all([
-        getCategories(),
+        getCategories().catch(() => ({ data: { data: [] } })),
         salonPromise,
-        getServices({ limit: 4 }),
+        getServices({ limit: 8 }).catch(() => ({ data: { data: { services: [] } } })),
         getBanners().catch(() => ({ data: { data: [] } })),
         getPackages(offersParams).catch(() => ({ data: { data: { packages: [] } } }))
       ]);
 
-      setCategories(catRes.data.data?.slice(0, 4) || []);
-      setServices(serviceRes.data.data.services || []);
+      setCategories(catRes.data?.data?.slice(0, 4) || []);
+      setServices(serviceRes.data?.data?.services || []);
       setBanners(bannerRes.data?.data || []);
-      setFeaturedOffers(offersRes.data?.data?.packages || []);
 
-      let fetchedSalons = salonRes.data.data.salons || [];
+      let fetchedSalons = salonRes.data?.data?.salons || [];
 
       // Smart Fallback: If nearby search returned 0 salons, fetch popular public salons across India
-      if (fetchedSalons.length === 0 && selectedLocation?.lat && selectedLocation?.lng) {
-        const publicSalonsRes = await getSalons({ limit: 10 });
-        fetchedSalons = publicSalonsRes.data.data.salons || [];
-        setSalonListTitle('Popular Salons Across India');
+      if (fetchedSalons.length === 0) {
+        const publicSalonsRes = await getSalons({ limit: 10 }).catch(() => ({ data: { data: { salons: [] } } }));
+        fetchedSalons = publicSalonsRes.data?.data?.salons || [];
+        if (selectedLocation?.city) {
+          setSalonListTitle(`Popular Salons (Near & Across India)`);
+        } else {
+          setSalonListTitle('Popular Salons');
+        }
       }
 
       setSalons(fetchedSalons);
+
+      let fetchedOffers = offersRes.data?.data?.packages || [];
+      if (fetchedOffers.length === 0) {
+        const fallbackOffersRes = await getPackages({ limit: 10, checkValidity: 'true', status: 'ACTIVE', isActive: 'true' }).catch(() => ({ data: { data: { packages: [] } } }));
+        fetchedOffers = fallbackOffersRes.data?.data?.packages || [];
+      }
+      setFeaturedOffers(fetchedOffers);
     } catch (err) {
-      console.error(err);
+      console.error('Error loading home data:', err);
     } finally {
       setLoading(false);
       setFeaturedOfferLoading(false);
@@ -189,7 +199,7 @@ const HomePage = () => {
                 ref={el => videoRefs.current[index] = el}
                 src={getImageUrl(banner.video)}
                 poster={banner.image ? getImageUrl(banner.image) : undefined}
-                className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-1000 ease-in-out ${index === currentBannerIndex ? 'opacity-35 z-0' : 'opacity-0 -z-10'}`}
+                className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-1000 ease-in-out ${index === currentBannerIndex ? 'opacity-55 z-0' : 'opacity-0 -z-10'}`}
                 muted
                 loop
                 playsInline
@@ -199,7 +209,7 @@ const HomePage = () => {
               <img
                 key={banner._id || index}
                 alt={banner.title || "Hero Background"}
-                className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-1000 ease-in-out ${index === currentBannerIndex ? 'opacity-40 z-0' : 'opacity-0 -z-10'}`}
+                className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-1000 ease-in-out ${index === currentBannerIndex ? 'opacity-65 z-0' : 'opacity-0 -z-10'}`}
                 src={getImageUrl(banner.image)}
                 onError={(e) => {
                   e.target.onerror = null;
@@ -211,11 +221,11 @@ const HomePage = () => {
         ) : (
           <img
             alt="Hero Background Fallback"
-            className="absolute inset-0 w-full h-full object-cover object-top opacity-40 z-0"
+            className="absolute inset-0 w-full h-full object-cover object-top opacity-60 z-0"
             src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=80"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-[#1A1A1A] z-0"></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-[#1A1A1A]/90 z-0"></div>
 
         {/* Header Nav (Mobile Only) */}
         <header className="relative z-10 w-full flex md:hidden justify-between items-center -mt-2.5">
@@ -421,7 +431,15 @@ const HomePage = () => {
               >
                 <div className="w-[56px] h-[56px] rounded-[16px] bg-[#EDE4FF] flex items-center justify-center text-primary-container shadow-sm hover:bg-primary-fixed transition-colors border border-primary-container/10 overflow-hidden">
                   {cat.image ? (
-                    <img src={getImageUrl(cat.image)} alt={cat.name} className="w-full h-full object-cover" />
+                    <img 
+                      src={getImageUrl(cat.image)} 
+                      alt={cat.name} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=150&q=80";
+                      }}
+                    />
                   ) : (
                     <span className="material-symbols-outlined text-[24px] font-light">{cat.icon || 'category'}</span>
                   )}
@@ -461,6 +479,10 @@ const HomePage = () => {
                     alt={salon.name}
                     className="w-full h-full object-cover"
                     src={salon.images?.[0] ? getImageUrl(salon.images[0]) : "https://images.unsplash.com/photo-1521590832167-7bfcfaa6362f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://images.unsplash.com/photo-1521590832167-7bfcfaa6362f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+                    }}
                   />
                   <button
                     onClick={(e) => { 
@@ -518,7 +540,15 @@ const HomePage = () => {
               >
                 <div className="w-14 h-14 rounded-full bg-soft-primary flex items-center justify-center text-primary mb-2 overflow-hidden">
                   {service.image ? (
-                    <img src={getImageUrl(service.image)} alt={service.name} className="w-full h-full object-cover" />
+                    <img 
+                      src={getImageUrl(service.image)} 
+                      alt={service.name} 
+                      className="w-full h-full object-cover" 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=150&q=80";
+                      }}
+                    />
                   ) : (
                     <span className="material-symbols-outlined">spa</span>
                   )}
