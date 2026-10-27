@@ -55,10 +55,16 @@ const HomePage = () => {
   useEffect(() => {
     videoRefs.current.forEach((video, idx) => {
       if (video) {
+        video.muted = true;
+        video.defaultMuted = true;
         if (idx === currentBannerIndex) {
-          video.play().catch((err) => {
-            console.log('Autoplay play blocked or error:', err);
-          });
+          video.currentTime = 0;
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((err) => {
+              console.log('Autoplay play blocked or error:', err);
+            });
+          }
         } else {
           video.pause();
         }
@@ -66,17 +72,35 @@ const HomePage = () => {
     });
   }, [currentBannerIndex, banners]);
 
+  // Mobile interaction trigger: resumes video if browser initially blocked autoplay
+  useEffect(() => {
+    const resumeVideo = () => {
+      const activeVideo = videoRefs.current[currentBannerIndex];
+      if (activeVideo && activeVideo.paused) {
+        activeVideo.muted = true;
+        activeVideo.play().catch(() => {});
+      }
+    };
+    window.addEventListener('touchstart', resumeVideo, { passive: true });
+    window.addEventListener('scroll', resumeVideo, { passive: true });
+    window.addEventListener('click', resumeVideo, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', resumeVideo);
+      window.removeEventListener('scroll', resumeVideo);
+      window.removeEventListener('click', resumeVideo);
+    };
+  }, [currentBannerIndex]);
+
   // Tab Visibility change listener
   useEffect(() => {
     const handleVisibilityChange = () => {
+      const activeVideo = videoRefs.current[currentBannerIndex];
+      if (!activeVideo) return;
       if (document.hidden) {
-        const activeVideo = videoRefs.current[currentBannerIndex];
-        if (activeVideo) activeVideo.pause();
+        activeVideo.pause();
       } else {
-        const activeVideo = videoRefs.current[currentBannerIndex];
-        if (activeVideo) {
-          activeVideo.play().catch(() => {});
-        }
+        activeVideo.muted = true;
+        activeVideo.play().catch(() => {});
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -196,14 +220,36 @@ const HomePage = () => {
             banner.type === 'video' ? (
               <video
                 key={banner._id || index}
-                ref={el => videoRefs.current[index] = el}
+                ref={el => {
+                  if (el) {
+                    el.muted = true;
+                    el.defaultMuted = true;
+                  }
+                  videoRefs.current[index] = el;
+                }}
                 src={getImageUrl(banner.video)}
                 poster={banner.image ? getImageUrl(banner.image) : undefined}
                 className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-1000 ease-in-out ${index === currentBannerIndex ? 'opacity-55 z-0' : 'opacity-0 -z-10'}`}
+                autoPlay
                 muted
                 loop
                 playsInline
-                preload="metadata"
+                preload="auto"
+                onEnded={(e) => {
+                  e.currentTarget.currentTime = 0;
+                  e.currentTarget.play().catch(() => {});
+                }}
+                onPause={(e) => {
+                  if (index === currentBannerIndex && !document.hidden) {
+                    e.currentTarget.play().catch(() => {});
+                  }
+                }}
+                onCanPlay={(e) => {
+                  if (index === currentBannerIndex) {
+                    e.currentTarget.muted = true;
+                    e.currentTarget.play().catch(() => {});
+                  }
+                }}
               />
             ) : (
               <img
