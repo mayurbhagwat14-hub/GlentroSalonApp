@@ -35,7 +35,11 @@ export const NotificationProvider = ({ children }) => {
 
   // Request FCM token and register with backend when authenticated
   useEffect(() => {
-    if (!userToken && !vendorToken) return;
+    const isVendorSection = typeof window !== 'undefined' && window.location.pathname.startsWith('/vendor');
+    const isAdminSection = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+
+    if (isVendorSection && !vendorToken) return;
+    if (!isVendorSection && !isAdminSection && !userToken) return;
 
     let isMounted = true;
     const registerFcm = async () => {
@@ -44,10 +48,17 @@ export const NotificationProvider = ({ children }) => {
         const fcmToken = await requestNotificationPermission();
         if (fcmToken && isMounted) {
           localStorage.setItem('glentro_fcm_token', fcmToken);
-          const endpoint = vendorToken ? '/vendors/fcm-token' : '/users/fcm-token';
-          console.log('[NotificationContext] Sending FCM token to backend endpoint:', endpoint);
-          const res = await api.put(endpoint, { fcmtoken: fcmToken, platform: 'web' });
-          console.log('[NotificationContext] FCM token saved to backend successfully:', res.data);
+          if (isVendorSection && vendorToken) {
+            console.log('[NotificationContext] Sending FCM token to vendor endpoint');
+            await api.put('/vendors/fcm-token', { fcmtoken: fcmToken, platform: 'web' }, {
+              headers: { Authorization: `Bearer ${vendorToken}` }
+            });
+          } else if (!isVendorSection && !isAdminSection && userToken) {
+            console.log('[NotificationContext] Sending FCM token to user endpoint');
+            await api.put('/users/fcm-token', { fcmtoken: fcmToken, platform: 'web' }, {
+              headers: { Authorization: `Bearer ${userToken}` }
+            });
+          }
         } else {
           console.warn('[NotificationContext] FCM token not obtained (permission might be pending or denied)');
         }

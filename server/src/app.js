@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -90,6 +91,9 @@ app.use(cors(corsOptions));
 
 // Handle OPTIONS preflight explicitly so CORS headers are always sent
 app.options('*', cors(corsOptions));
+
+// Gzip / Brotli compression for fast JSON responses
+app.use(compression());
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));

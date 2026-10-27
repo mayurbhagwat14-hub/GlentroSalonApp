@@ -32,7 +32,7 @@ export const updateAdminContent = (type, data) => api.put(`/admin/content/${type
 
 // Auth & Profile
 export const loginAdmin = (data) => api.post('/auth/login/admin', data);
-export const getProfile = () => api.get('/auth/profile');
+export const getProfile = (token) => api.get('/auth/profile', token ? { headers: { Authorization: `Bearer ${token}` } } : {});
 export const updateProfile = (data) => api.put('/users/profile', data);
 
 // Salons

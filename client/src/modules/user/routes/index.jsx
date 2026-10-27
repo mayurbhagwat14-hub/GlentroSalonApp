@@ -33,7 +33,14 @@ const CallHistoryPage = lazy(() => import('../pages/profile/CallHistoryPage'));
 import OffersPage from '../pages/home/OffersPage';
 
 const SuspenseWrapper = ({ children }) => (
-  <Suspense fallback={<Loader text="Loading page..." />}>
+  <Suspense
+    fallback={
+      <div className="w-full min-h-[35vh] flex flex-col items-center justify-center p-6 animate-fade-in">
+        <div className="w-7 h-7 border-3 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-2"></div>
+        <span className="text-xs font-medium text-text-secondary">Loading...</span>
+      </div>
+    }
+  >
     {children}
   </Suspense>
 );

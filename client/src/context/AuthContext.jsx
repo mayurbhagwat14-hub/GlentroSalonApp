@@ -45,35 +45,41 @@ export const AuthProvider = ({ children }) => {
   // Background refresh of user/vendor/admin profiles without blocking app render
   useEffect(() => {
     const refreshProfiles = async () => {
-      if (userToken) {
-        getUserProfile(userToken)
-          .then(r => {
-            if (r?.data?.data?.user) {
-              setUser(r.data.data.user);
-              localStorage.setItem('user', JSON.stringify(r.data.data.user));
-            }
-          })
-          .catch((e) => console.error('Failed to sync user profile', e));
-      }
-      if (vendorToken) {
-        getVendorProfile(vendorToken)
-          .then(r => {
-            if (r?.data?.data?.user) {
-              setVendor(r.data.data.user);
-              localStorage.setItem('vendor', JSON.stringify(r.data.data.user));
-            }
-          })
-          .catch((e) => console.error('Failed to sync vendor profile', e));
-      }
-      if (adminToken) {
-        getAdminProfile(adminToken)
-          .then(r => {
-            if (r?.data?.data?.user) {
-              setAdmin(r.data.data.user);
-              localStorage.setItem('admin', JSON.stringify(r.data.data.user));
-            }
-          })
-          .catch((e) => console.error('Failed to sync admin profile', e));
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+
+      if (currentPath.startsWith('/admin')) {
+        if (adminToken) {
+          getAdminProfile(adminToken)
+            .then(r => {
+              if (r?.data?.data?.user) {
+                setAdmin(r.data.data.user);
+                localStorage.setItem('admin', JSON.stringify(r.data.data.user));
+              }
+            })
+            .catch((e) => console.error('Failed to sync admin profile', e));
+        }
+      } else if (currentPath.startsWith('/vendor')) {
+        if (vendorToken) {
+          getVendorProfile(vendorToken)
+            .then(r => {
+              if (r?.data?.data?.user) {
+                setVendor(r.data.data.user);
+                localStorage.setItem('vendor', JSON.stringify(r.data.data.user));
+              }
+            })
+            .catch((e) => console.error('Failed to sync vendor profile', e));
+        }
+      } else {
+        if (userToken) {
+          getUserProfile(userToken)
+            .then(r => {
+              if (r?.data?.data?.user) {
+                setUser(r.data.data.user);
+                localStorage.setItem('user', JSON.stringify(r.data.data.user));
+              }
+            })
+            .catch((e) => console.error('Failed to sync user profile', e));
+        }
       }
     };
     refreshProfiles();
