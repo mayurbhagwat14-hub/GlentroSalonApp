@@ -154,7 +154,7 @@ const BookingPage = () => {
   return (
     <div className="bg-background min-h-screen text-on-surface pb-[180px] w-full max-w-container-max mx-auto relative">
       {/* Transactional Header */}
-      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md px-4 md:px-margin-desktop py-4 flex items-center justify-between border-b border-border shadow-sm">
+      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md px-4 md:px-margin-desktop pt-[max(1rem,env(safe-area-inset-top,14px))] pb-3.5 flex items-center justify-between border-b border-border shadow-sm">
         <button 
           type="button"
           onClick={() => {
@@ -308,7 +308,7 @@ const BookingPage = () => {
       </main>
 
       {/* Sticky Footer CTA */}
-      <div className="fixed bottom-0 md:bottom-0 left-0 w-full max-w-container-max md:left-1/2 md:-translate-x-1/2 bg-surface/95 backdrop-blur-xl border-t border-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-6 shadow-elevated z-40">
+      <div className="fixed bottom-0 md:bottom-0 left-0 w-full max-w-container-max md:left-1/2 md:-translate-x-1/2 bg-surface/95 backdrop-blur-xl border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom,16px))] md:pb-6 shadow-elevated z-40">
         <button
           onClick={handleProceed}
           disabled={!date || !time}

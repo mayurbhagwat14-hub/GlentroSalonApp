@@ -21,7 +21,7 @@ const MainLayout = ({ children }) => {
 
   return (
     <div className={`bg-background text-on-background antialiased min-h-screen ${
-      isFlowPage ? 'pb-[env(safe-area-inset-bottom,16px)]' : 'pb-[calc(4.5rem+env(safe-area-inset-bottom))]'
+      isFlowPage ? 'pb-[env(safe-area-inset-bottom,16px)]' : 'pb-[calc(4.8rem+env(safe-area-inset-bottom,14px))]'
     } md:pb-0 pt-0 md:pt-[calc(4.5rem+env(safe-area-inset-top))] max-w-[100vw] overflow-x-hidden flex flex-col`}>
       <TopNav />
 

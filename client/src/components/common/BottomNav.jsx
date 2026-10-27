@@ -40,7 +40,7 @@ const BottomNav = () => {
   if (isKeyboardOpen) return null;
 
   return (
-    <nav className="bottom-nav fixed bottom-0 left-0 w-full flex justify-around items-center pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] px-4 bg-surface shadow-[0px_-10px_20px_rgba(109,62,168,0.08)] rounded-t-[20px] z-50 md:hidden box-border">
+    <nav className="bottom-nav fixed bottom-0 left-0 w-full flex justify-around items-center pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom,14px))] px-4 bg-surface shadow-[0px_-10px_20px_rgba(109,62,168,0.08)] rounded-t-[20px] z-50 md:hidden box-border">
       <NavLink 
         to="/" 
         className={({ isActive }) => 

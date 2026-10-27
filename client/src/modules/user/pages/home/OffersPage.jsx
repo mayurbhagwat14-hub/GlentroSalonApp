@@ -151,7 +151,7 @@ const OffersPage = () => {
   );
 
   return (
-    <div className="animate-fade-in space-y-5 w-full px-4 md:px-0 pb-[120px] md:pb-14 pt-2 min-h-screen bg-background">
+    <div className="animate-fade-in space-y-5 w-full px-4 md:px-0 pb-[120px] md:pb-14 pt-[max(0.75rem,env(safe-area-inset-top,14px))] min-h-screen bg-background">
       
       {/* Sleek Professional Hero Header Section */}
       <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#4A1D7F] via-[#54238F] to-[#6D3EA8] text-white p-5 sm:p-6 shadow-sm">
