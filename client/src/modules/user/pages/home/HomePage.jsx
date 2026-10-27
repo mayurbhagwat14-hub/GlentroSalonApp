@@ -468,14 +468,14 @@ const HomePage = () => {
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-headline-sm text-headline-sm text-heading-text">Top Categories</h3>
           </div>
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2 w-full pb-2">
             {categories.map(cat => (
               <div
                 key={cat._id}
-                className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0"
+                className="flex flex-col items-center gap-1.5 cursor-pointer w-full group"
                 onClick={() => navigate(`/search?q=${cat.name}`)}
               >
-                <div className="w-[56px] h-[56px] rounded-[16px] bg-[#EDE4FF] flex items-center justify-center text-primary-container shadow-sm hover:bg-primary-fixed transition-colors border border-primary-container/10 overflow-hidden">
+                <div className="w-[56px] h-[56px] rounded-[16px] bg-[#EDE4FF] flex items-center justify-center text-primary-container shadow-sm hover:bg-primary-fixed group-hover:scale-105 transition-all border border-primary-container/10 overflow-hidden">
                   {cat.image ? (
                     <img 
                       src={getImageUrl(cat.image)} 
@@ -490,19 +490,19 @@ const HomePage = () => {
                     <span className="material-symbols-outlined text-[24px] font-light">{cat.icon || 'category'}</span>
                   )}
                 </div>
-                <span className="font-label-md text-[11px] text-heading-text font-medium truncate max-w-[56px] text-center">{cat.name}</span>
+                <span className="font-label-md text-[11px] text-heading-text font-medium truncate w-full text-center px-0.5">{cat.name}</span>
               </div>
             ))}
 
             {/* More Button */}
             <div
-              className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0"
+              className="flex flex-col items-center gap-1.5 cursor-pointer w-full group"
               onClick={() => navigate('/search')}
             >
-              <div className="w-[56px] h-[56px] rounded-[16px] bg-surface-container flex items-center justify-center text-muted-text shadow-sm hover:bg-surface-container-high transition-colors border border-border">
+              <div className="w-[56px] h-[56px] rounded-[16px] bg-surface-container flex items-center justify-center text-muted-text shadow-sm hover:bg-surface-container-high group-hover:scale-105 transition-all border border-border">
                 <span className="material-symbols-outlined text-[24px] font-light">grid_view</span>
               </div>
-              <span className="font-label-md text-[11px] text-heading-text font-medium text-center">More</span>
+              <span className="font-label-md text-[11px] text-heading-text font-medium text-center w-full">More</span>
             </div>
           </div>
         </section>
