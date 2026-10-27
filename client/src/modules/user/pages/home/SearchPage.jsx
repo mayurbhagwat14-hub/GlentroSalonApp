@@ -241,18 +241,16 @@ const SearchPage = () => {
                     onClick={() => navigate(`/salon/${salon._id}`)}
                     className="flex-none w-64 bg-surface rounded-[18px] border border-border shadow-sm overflow-hidden snap-start hover:shadow-md transition-all duration-300 cursor-pointer group"
                   >
-                    <div className="h-32 w-full relative overflow-hidden bg-surface-variant">
-                      {salon.images?.[0] ? (
-                        <img 
-                          src={getImageUrl(salon.images[0])}
-                          alt={salon.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-primary/30">
-                          <span className="material-symbols-outlined text-[30px]">content_cut</span>
-                        </div>
-                      )}
+                  <div className="h-32 w-full relative overflow-hidden bg-surface-variant">
+                    <img 
+                      src={salon.images?.[0] ? getImageUrl(salon.images[0]) : "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=80"}
+                      alt={salon.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://images.unsplash.com/photo-1521590832167-7bfcfaa6362f?auto=format&fit=crop&w=600&q=80";
+                      }}
+                    />
                       {salon.ratings?.average > 0 && (
                         <div className="absolute top-2 right-2 bg-surface/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm flex items-center gap-1">
                           <span className="material-symbols-outlined text-rating text-[12px]" style={{fontVariationSettings: "'FILL' 1"}}>star</span>
@@ -312,17 +310,15 @@ const SearchPage = () => {
                   className="bg-surface rounded-[18px] border border-border shadow-sm overflow-hidden flex flex-col cursor-pointer group hover:shadow-md transition-all duration-300 active:scale-[0.98]"
                 >
                   <div className="h-40 w-full relative overflow-hidden bg-surface-variant">
-                    {salon.images?.[0] ? (
-                      <img 
-                        src={getImageUrl(salon.images[0])} 
-                        alt={salon.name} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-primary/30">
-                        <span className="material-symbols-outlined text-[36px]">content_cut</span>
-                      </div>
-                    )}
+                    <img 
+                      src={salon.images?.[0] ? getImageUrl(salon.images[0]) : "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=600&q=80"} 
+                      alt={salon.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://images.unsplash.com/photo-1521590832167-7bfcfaa6362f?auto=format&fit=crop&w=600&q=80";
+                      }}
+                    />
                     {salon.ratings?.average > 0 && (
                       <div className="absolute top-3 right-3 bg-surface/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm">
                         <span className="material-symbols-outlined text-rating text-[14px]" style={{fontVariationSettings: "'FILL' 1"}}>star</span>
