@@ -162,13 +162,25 @@ const HomePage = () => {
       const [catRes, salonRes, serviceRes, bannerRes, offersRes] = await Promise.all([
         getCategories().catch(() => ({ data: { data: [] } })),
         salonPromise,
-        getServices({ limit: 8 }).catch(() => ({ data: { data: { services: [] } } })),
+        getServices({ limit: 40 }).catch(() => ({ data: { data: { services: [] } } })),
         getBanners().catch(() => ({ data: { data: [] } })),
         getPackages(offersParams).catch(() => ({ data: { data: { packages: [] } } }))
       ]);
 
       setCategories(catRes.data?.data?.slice(0, 4) || []);
-      setServices(serviceRes.data?.data?.services || []);
+      
+      // Deduplicate services by clean name so each popular service is unique
+      const rawServices = serviceRes.data?.data?.services || [];
+      const seenNames = new Set();
+      const uniqueServices = [];
+      for (const s of rawServices) {
+        const cleanName = s.name.trim().toLowerCase();
+        if (!seenNames.has(cleanName)) {
+          seenNames.add(cleanName);
+          uniqueServices.push(s);
+        }
+      }
+      setServices(uniqueServices.slice(0, 8));
       setBanners(bannerRes.data?.data || []);
 
       let fetchedSalons = salonRes.data?.data?.salons || [];
@@ -210,6 +222,62 @@ const HomePage = () => {
   };
 
   const activeBanner = banners.length > 0 ? banners[currentBannerIndex] : null;
+
+  const getServiceFallback = (name = '') => {
+    const lower = name.toLowerCase();
+    if (lower.includes('beard')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=400&q=80',
+        icon: 'face'
+      };
+    }
+    if (lower.includes('women') || (lower.includes('hair') && lower.includes('cut') && !lower.includes('men'))) {
+      return {
+        image: 'https://images.unsplash.com/photo-1560869713-7d0a29430803?auto=format&fit=crop&w=400&q=80',
+        icon: 'content_cut'
+      };
+    }
+    if (lower.includes('hair') || lower.includes('cut')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=400&q=80',
+        icon: 'content_cut'
+      };
+    }
+    if (lower.includes('facial') || lower.includes('clean')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=400&q=80',
+        icon: 'auto_awesome'
+      };
+    }
+    if (lower.includes('massage') || lower.includes('head')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=400&q=80',
+        icon: 'self_improvement'
+      };
+    }
+    if (lower.includes('color') || lower.includes('dye')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=400&q=80',
+        icon: 'palette'
+      };
+    }
+    if (lower.includes('mani') || lower.includes('pedi') || lower.includes('nail')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1632345031435-8727f6897d53?auto=format&fit=crop&w=400&q=80',
+        icon: 'brush'
+      };
+    }
+    if (lower.includes('jacuzzi') || lower.includes('spa')) {
+      return {
+        image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=400&q=80',
+        icon: 'hot_tub'
+      };
+    }
+    return {
+      image: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=400&q=80',
+      icon: 'spa'
+    };
+  };
 
   return (
     <div className="bg-[#F8F7F5] text-on-surface font-body-md antialiased pb-4 -mx-4 md:mx-0 md:bg-transparent md:pt-4">
@@ -339,7 +407,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      <main className="px-6 space-y-8 mt-4">
+      <main className="px-5 sm:px-6 space-y-5 sm:space-y-6 mt-3">
         {/* Promotional Offers Banner */}
         {/* Dynamic Promotional Offers Banner Carousel */}
         <section className="relative h-52 sm:h-60 rounded-3xl overflow-hidden shadow-md border border-border/10 cursor-pointer active:scale-[0.99] transition-transform duration-150 group">
@@ -465,10 +533,10 @@ const HomePage = () => {
 
         {/* Top Categories */}
         <section>
-          <div className="flex justify-between items-center mb-5">
+          <div className="flex justify-between items-center mb-2.5">
             <h3 className="font-headline-sm text-headline-sm text-heading-text">Top Categories</h3>
           </div>
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-2 w-full pb-2">
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2 w-full">
             {categories.map(cat => (
               <div
                 key={cat._id}
@@ -509,11 +577,11 @@ const HomePage = () => {
 
         {/* Nearby Salons */}
         <section>
-          <div className="flex justify-between items-end mb-4">
+          <div className="flex justify-between items-end mb-2.5">
             <h3 className="font-headline-sm text-headline-sm text-heading-text">{salonListTitle}</h3>
             <button onClick={() => navigate('/salons')} className="font-label-sm text-label-sm text-primary-container hover:text-primary-dark">View all</button>
           </div>
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 -mx-6 px-6">
+          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-1.5 -mx-5 px-5 sm:-mx-6 sm:px-6">
             {salons.map(salon => (
               <div
                 key={salon._id}
@@ -573,49 +641,265 @@ const HomePage = () => {
 
         {/* Popular Services */}
         <section>
-          <div className="flex justify-between items-end mb-4">
-            <h3 className="font-headline-sm text-headline-sm text-heading-text">Popular Services</h3>
-            <button onClick={() => navigate('/search')} className="font-label-sm text-label-sm text-primary-container hover:text-primary-dark">View all</button>
+          <div className="flex justify-between items-end mb-2.5">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Top Treatments</span>
+              <h3 className="font-headline-sm text-headline-sm text-heading-text">Popular Services</h3>
+            </div>
+            <button onClick={() => navigate('/search')} className="font-label-sm text-label-sm text-primary hover:text-primary-dark font-semibold">
+              View all
+            </button>
           </div>
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
-            {services.map(service => (
-              <div
-                key={service._id}
-                className="flex flex-col items-center shrink-0 w-[72px] cursor-pointer"
-                onClick={() => navigate(`/search?q=${service.name}`)}
-              >
-                <div className="w-14 h-14 rounded-full bg-soft-primary flex items-center justify-center text-primary mb-2 overflow-hidden">
-                  {service.image ? (
+
+          <div className="flex gap-3.5 overflow-x-auto hide-scrollbar pb-1 -mx-5 px-5 sm:-mx-6 sm:px-6">
+            {services.map(service => {
+              const fallback = getServiceFallback(service.name);
+              const imgSrc = service.image ? getImageUrl(service.image) : fallback.image;
+              return (
+                <div
+                  key={service._id}
+                  onClick={() => navigate(`/search?q=${encodeURIComponent(service.name)}`)}
+                  className="shrink-0 w-[145px] sm:w-[160px] bg-white rounded-2xl border border-border/80 shadow-sm hover:shadow-md transition-all duration-300 p-2.5 flex flex-col justify-between group cursor-pointer active:scale-[0.98]"
+                >
+                  <div className="h-28 w-full rounded-xl overflow-hidden relative bg-surface-container mb-2">
                     <img 
-                      src={getImageUrl(service.image)} 
+                      src={imgSrc} 
                       alt={service.name} 
-                      className="w-full h-full object-cover" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=150&q=80";
+                        e.target.src = fallback.image;
                       }}
                     />
-                  ) : (
-                    <span className="material-symbols-outlined">spa</span>
-                  )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent"></div>
+                    <span className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                      ₹{service.price}
+                    </span>
+                  </div>
+                  <div className="px-1">
+                    <h4 className="text-xs font-bold text-on-surface truncate group-hover:text-primary transition-colors">
+                      {service.name}
+                    </h4>
+                    <span className="text-[10px] text-muted-text flex items-center gap-1 mt-0.5">
+                      <span>Explore</span>
+                      <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
+                    </span>
+                  </div>
                 </div>
-                <span className="text-[11px] font-medium text-heading-text text-center line-clamp-1 w-full px-1">{service.name}</span>
-                <span className="text-[10px] text-muted-text">₹{service.price}</span>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        </section>
 
-            <div
-              className="flex flex-col items-center shrink-0 w-[72px] cursor-pointer"
-              onClick={() => navigate('/search')}
-            >
-              <div className="w-14 h-14 rounded-full bg-surface-container flex items-center justify-center text-muted-text mb-2">
-                <span className="material-symbols-outlined">more_horiz</span>
+        {/* Featured Package Deals Spotlight */}
+        {featuredOffers.length > 0 && (
+          <section>
+            <div className="flex justify-between items-end mb-2.5">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Special Combos</span>
+                <h3 className="font-headline-sm text-headline-sm text-heading-text">Exclusive Value Bundles</h3>
               </div>
-              <span className="text-[11px] font-medium text-heading-text text-center">More</span>
+              <button onClick={() => navigate('/offers')} className="font-label-sm text-label-sm text-primary hover:text-primary-dark font-semibold">
+                View all offers
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {featuredOffers.slice(0, 3).map((pkg) => {
+                const discount = pkg.discountPercent || (pkg.totalPrice ? Math.round(((pkg.totalPrice - pkg.discountedPrice) / pkg.totalPrice) * 100) : 0);
+                const savings = pkg.totalPrice && pkg.discountedPrice ? pkg.totalPrice - pkg.discountedPrice : 0;
+                return (
+                  <div 
+                    key={pkg._id}
+                    onClick={() => navigate(`/offers?salon=${pkg.salon?._id || ''}&search=${encodeURIComponent(pkg.name || '')}`)}
+                    className="bg-white rounded-2xl border border-border/80 shadow-sm hover:shadow-md transition-all duration-300 p-4 flex flex-col justify-between group cursor-pointer"
+                  >
+                    <div>
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <span className="text-xs font-medium text-muted-text flex items-center gap-1 truncate max-w-[65%]">
+                          <span className="material-symbols-outlined text-[14px] text-primary">store</span>
+                          <span className="truncate">{pkg.salon?.name || 'Partner Salon'}</span>
+                        </span>
+                        {discount > 0 && (
+                          <span className="bg-[#54238F] text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                            {discount}% OFF
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="font-bold text-on-surface text-[15px] group-hover:text-primary transition-colors line-clamp-1 mb-1">
+                        {pkg.name}
+                      </h4>
+
+                      {pkg.services?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 my-2">
+                          {pkg.services.slice(0, 2).map((s) => (
+                            <span key={s._id} className="text-[10px] px-2 py-0.5 bg-[#F5EEFC] text-[#54238F] rounded border border-[#DEC2FF]/50 font-medium">
+                              {s.name}
+                            </span>
+                          ))}
+                          {pkg.services.length > 2 && (
+                            <span className="text-[10px] px-1 py-0.5 text-muted-text font-medium">
+                              +{pkg.services.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-3 border-t border-border/60 mt-2 flex items-center justify-between">
+                      <div>
+                        {savings > 0 && <span className="text-[10px] text-emerald-700 font-semibold block">Save ₹{savings}</span>}
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-base font-black text-primary">₹{pkg.discountedPrice}</span>
+                          {pkg.totalPrice && <span className="text-xs text-muted-text line-through">₹{pkg.totalPrice}</span>}
+                        </div>
+                      </div>
+                      <span className="bg-primary/10 group-hover:bg-primary group-hover:text-white text-primary text-xs font-bold px-3 py-1.5 rounded-xl transition-colors">
+                        Book
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Why Book with Glentro (Trust & Quality Badges) */}
+        <section className="bg-gradient-to-br from-[#FAF9FC] to-[#F3EFFC] rounded-3xl p-4 sm:p-5 border border-[#54238F]/10">
+          <div className="text-center max-w-md mx-auto mb-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">The Glentro Promise</span>
+            <h3 className="font-headline-sm text-lg sm:text-xl font-bold text-heading-text mt-0.5">Why Choose Glentro Salons</h3>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3.5 border border-border/60 shadow-sm text-center flex flex-col items-center">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-2">
+                <span className="material-symbols-outlined text-[22px]">verified</span>
+              </div>
+              <h4 className="text-xs font-bold text-on-surface">100% Verified</h4>
+              <p className="text-[10px] text-muted-text mt-0.5 leading-snug">Certified stylists & licensed salons</p>
+            </div>
+
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3.5 border border-border/60 shadow-sm text-center flex flex-col items-center">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 mb-2">
+                <span className="material-symbols-outlined text-[22px]">clean_hands</span>
+              </div>
+              <h4 className="text-xs font-bold text-on-surface">Sanitized Tools</h4>
+              <p className="text-[10px] text-muted-text mt-0.5 leading-snug">Strict hygiene & safety protocols</p>
+            </div>
+
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3.5 border border-border/60 shadow-sm text-center flex flex-col items-center">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600 mb-2">
+                <span className="material-symbols-outlined text-[22px]">price_check</span>
+              </div>
+              <h4 className="text-xs font-bold text-on-surface">Honest Pricing</h4>
+              <p className="text-[10px] text-muted-text mt-0.5 leading-snug">No surge fees or hidden costs</p>
+            </div>
+
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-3.5 border border-border/60 shadow-sm text-center flex flex-col items-center">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 mb-2">
+                <span className="material-symbols-outlined text-[22px]">bolt</span>
+              </div>
+              <h4 className="text-xs font-bold text-on-surface">Instant Slots</h4>
+              <p className="text-[10px] text-muted-text mt-0.5 leading-snug">Immediate slot confirmation</p>
             </div>
           </div>
         </section>
 
+        {/* Glentro Wallet / Refer & Earn Promotional Card */}
+        <section 
+          onClick={() => navigate('/profile')}
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#4A1D7F] via-[#54238F] to-[#7B3FE4] text-white p-5 sm:p-6 shadow-md cursor-pointer group"
+        >
+          <div className="absolute -right-8 -bottom-8 w-36 h-36 bg-pink-500/20 rounded-full blur-2xl pointer-events-none"></div>
+          <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1 max-w-sm">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold uppercase tracking-wider">
+                <span className="material-symbols-outlined text-xs text-amber-300">account_balance_wallet</span>
+                Glentro Rewards
+              </span>
+              <h3 className="text-lg font-extrabold text-white">Get ₹150 in Your Wallet</h3>
+              <p className="text-xs text-white/85 leading-relaxed">
+                Invite your friends to Glentro. They get ₹100 off, and you earn ₹150 wallet cashback on their first appointment.
+              </p>
+            </div>
+            <button className="bg-white text-primary font-bold text-xs px-4 py-2.5 rounded-xl shadow group-hover:bg-soft-primary transition-all whitespace-nowrap active:scale-95">
+              View Wallet & Rewards →
+            </button>
+          </div>
+        </section>
+
+        {/* Client Reviews / Social Proof */}
+        <section>
+          <div className="flex justify-between items-end mb-2.5">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Loved by Clients</span>
+              <h3 className="font-headline-sm text-headline-sm text-heading-text">What Our Clients Say</h3>
+            </div>
+            <span className="text-xs text-muted-text font-medium">★ 4.8 / 5 Rating</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {[
+              {
+                name: "Ananya Sharma",
+                salon: "Zazzle Salon",
+                review: "Booking through Glentro was seamless. No waiting time at the salon, and the discount on the combo package was fantastic!",
+                rating: 5
+              },
+              {
+                name: "Rohan Verma",
+                salon: "Toni & Guy",
+                review: "The stylist was super professional. Verified salon hygiene standards give so much peace of mind.",
+                rating: 5
+              },
+              {
+                name: "Pooja Mehta",
+                salon: "Bounce Salon & Spa",
+                review: "Great app interface and quick slot booking. Loved the instant appointment confirmation!",
+                rating: 5
+              }
+            ].map((r, i) => (
+              <div key={i} className="bg-white rounded-2xl p-4 border border-border/80 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1 text-amber-400 mb-2">
+                    {Array.from({ length: r.rating }).map((_, starIdx) => (
+                      <span key={starIdx} className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                    ))}
+                  </div>
+                  <p className="text-xs text-on-surface-variant leading-relaxed italic">"{r.review}"</p>
+                </div>
+                <div className="pt-3 border-t border-border/50 mt-3 flex justify-between items-center text-xs">
+                  <span className="font-bold text-on-surface">{r.name}</span>
+                  <span className="text-[11px] text-muted-text">{r.salon}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Safe & Secure Booking Guarantee Strip */}
+        <section className="border-t border-border/80 pt-6 pb-2 text-center text-muted-text text-xs space-y-2">
+          <div className="flex flex-wrap justify-center items-center gap-4 text-xs font-medium text-on-surface-variant">
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px] text-primary">lock</span>
+              100% Secure Payments
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px] text-primary">support_agent</span>
+              24/7 Customer Care
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px] text-primary">payments</span>
+              Pay via UPI / Card or at Salon
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-text">Glentro © 2026 • Discover & Book Premium Salons Across India</p>
+        </section>
 
       </main>
 
