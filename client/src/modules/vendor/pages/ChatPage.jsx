@@ -104,7 +104,7 @@ const ChatPage = () => {
   return (
     <div className="flex flex-col h-[100dvh] sm:h-full animate-fade-in max-w-4xl mx-auto w-full bg-surface sm:rounded-2xl shadow-sm sm:border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-border bg-surface sticky top-0 z-10">
+      <div className="flex items-center gap-4 p-4 pt-[max(1rem,env(safe-area-inset-top,14px))] border-b border-border bg-surface sticky top-0 z-10">
         <button onClick={() => goBack(navigate, '/vendor/chats')} className="p-2 -ml-2 rounded-xl text-on-surface hover:bg-surface-variant transition-colors flex items-center justify-center">
           <span className="material-symbols-outlined text-[24px]">arrow_back</span>
         </button>
@@ -149,7 +149,7 @@ const ChatPage = () => {
       </div>
 
       {/* Input */}
-      <div className="p-4 bg-surface border-t border-border flex gap-2">
+      <div className="p-4 pb-[max(1rem,env(safe-area-inset-bottom,16px))] bg-surface border-t border-border flex gap-2">
         <input type="text" value={newMessage} onChange={handleInputChange} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
           placeholder="Type a message..." className="flex-1 px-4 py-3 rounded-xl bg-background-alt border border-border text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary text-on-surface" />
         <button onClick={handleSend} disabled={!newMessage.trim() || sending} className="px-6 py-3 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-primary-dark transition-colors disabled:opacity-50 shadow-sm flex items-center gap-1.5">

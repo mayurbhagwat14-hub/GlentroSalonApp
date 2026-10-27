@@ -25,7 +25,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity" />
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="flex min-h-full items-center justify-center p-4 pt-[max(1rem,env(safe-area-inset-top,16px))] pb-[max(1rem,env(safe-area-inset-bottom,16px))]">
         <div
           className={`relative ${sizes[size]} w-full max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-elevated animate-fade-in`}
           onClick={(e) => e.stopPropagation()}

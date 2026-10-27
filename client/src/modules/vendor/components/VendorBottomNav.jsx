@@ -12,7 +12,7 @@ const VendorBottomNav = () => {
   ];
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-md border-t border-border z-40 pb-[env(safe-area-inset-bottom)]">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-md border-t border-border z-40 pb-[max(0.6rem,env(safe-area-inset-bottom,14px))]">
       <nav className="flex justify-around items-center h-[60px] px-2">
         {navItems.map((item) => (
           <NavLink

@@ -96,7 +96,7 @@ const ChatPage = () => {
   return (
     <div className="flex flex-col h-[calc(100dvh-72px-env(safe-area-inset-bottom))] md:h-[calc(100vh-120px)] animate-fade-in max-w-4xl mx-auto w-full bg-white sm:rounded-2xl shadow-sm sm:border border-slate-100 overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-slate-100 bg-white sticky top-0 z-10">
+      <div className="flex items-center gap-4 p-4 pt-[max(1rem,env(safe-area-inset-top,14px))] border-b border-slate-100 bg-white sticky top-0 z-10">
         <button onClick={() => goBack(navigate, '/chat')} className="p-2 -ml-2 rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors flex items-center justify-center">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
         </button>
@@ -135,7 +135,7 @@ const ChatPage = () => {
       </div>
 
       {/* Input */}
-      <div className="border-t border-gray-100 bg-white p-3 flex gap-2 rounded-t-2xl">
+      <div className="border-t border-gray-100 bg-white p-3 pb-[max(1rem,env(safe-area-inset-bottom,16px))] flex gap-2 rounded-t-2xl">
         <input type="text" value={newMessage} onChange={handleInputChange} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
           placeholder="Type a message..." className="flex-1 px-4 py-3 rounded-xl bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200" />
         <Button onClick={handleSend} loading={sending} disabled={!newMessage.trim()}>Send</Button>

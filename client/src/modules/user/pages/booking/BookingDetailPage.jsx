@@ -653,7 +653,7 @@ const BookingDetailPage = () => {
       )}
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 pb-6 mb-4">
         {booking.paymentStatus !== 'PAID' && canCancel && booking.paymentMethod === 'ONLINE' && (
           <Button onClick={handlePayment} className="flex-1 bg-gradient-to-r from-primary-600 to-primary-500 text-white">Pay {formatPaise(booking.finalAmountPaise, booking.finalAmount)}</Button>
         )}

@@ -333,7 +333,7 @@ const BookingDetailPage = () => {
       </div>
 
       {/* Sticky Bottom Actions on Mobile */}
-      <div className="fixed lg:static bottom-0 left-0 right-0 bg-surface lg:bg-transparent border-t border-border lg:border-t-0 p-4 lg:p-5 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] lg:shadow-none z-30 lg:z-auto pb-[calc(1rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <div className="fixed lg:static bottom-0 left-0 right-0 bg-surface lg:bg-transparent border-t border-border lg:border-t-0 p-4 lg:p-5 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] lg:shadow-none z-30 lg:z-auto pb-[max(1.25rem,env(safe-area-inset-bottom,20px))] lg:pb-0">
         {booking.status === 'CONFIRMED' && (
           <div className="flex flex-col gap-3">
             {callError && (

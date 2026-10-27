@@ -21,15 +21,15 @@ const PageHeader = ({ title, fallbackPath = '/', onBack }) => {
   };
 
   return (
-    <div className="flex items-center gap-3 pt-[max(0.875rem,env(safe-area-inset-top,14px))] pb-2.5 md:hidden">
+    <div className="flex items-center gap-2 pt-2 pb-1 md:hidden">
       <button 
         onClick={handleBack} 
-        className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors -ml-3 text-on-surface"
+        className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors -ml-1 text-on-surface"
         aria-label="Go back"
       >
-        <span className="material-symbols-outlined text-[24px]">arrow_back</span>
+        <span className="material-symbols-outlined text-[22px]">arrow_back</span>
       </button>
-      <h1 className="font-headline-sm text-[20px] md:text-[24px] text-on-surface font-semibold truncate flex-1">{title}</h1>
+      <h1 className="font-headline-sm text-[18px] md:text-[22px] text-on-surface font-semibold truncate flex-1">{title}</h1>
     </div>
   );
 };
