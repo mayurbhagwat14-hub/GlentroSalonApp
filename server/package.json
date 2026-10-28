@@ -4,8 +4,8 @@
   "description": "Backend server for Salon Booking Platform",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node init && node src/server.js",
+    "dev": "node init && nodemon src/server.js",
     "seed": "node src/seeds/seed.js",
     "migrate:base64": "node src/scripts/migrate-base64-images.js",
     "test": "jest --coverage --forceExit --detectOpenHandles"

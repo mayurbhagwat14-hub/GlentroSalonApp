@@ -3,8 +3,6 @@ node_modules/
 # package-lock.json
 
 # Environment & Credentials
-.env
-.env.*
 *.pem
 *.key
 certs/
@@ -19,7 +17,6 @@ build/
 !server/uploads/.gitkeep
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -60,3 +57,4 @@ server/scripts/
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
+config.bat

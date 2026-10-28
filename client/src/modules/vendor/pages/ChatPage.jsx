@@ -104,7 +104,7 @@ const ChatPage = () => {
   return (
     <div className="flex flex-col h-[100dvh] sm:h-full animate-fade-in max-w-4xl mx-auto w-full bg-surface sm:rounded-2xl shadow-sm sm:border border-border overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-4 p-4 pt-[max(1rem,env(safe-area-inset-top,14px))] border-b border-border bg-surface sticky top-0 z-10">
+      <div className="flex items-center gap-4 p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] border-b border-border bg-surface sticky top-0 z-10">
         <button onClick={() => goBack(navigate, '/vendor/chats')} className="p-2 -ml-2 rounded-xl text-on-surface hover:bg-surface-variant transition-colors flex items-center justify-center">
           <span className="material-symbols-outlined text-[24px]">arrow_back</span>
         </button>

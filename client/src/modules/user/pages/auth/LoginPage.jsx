@@ -235,7 +235,7 @@ const LoginPage = () => {
       </div>
 
       {/* RIGHT SIDE: Login Card */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 z-20">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 z-20 pt-[max(1.5rem,calc(env(safe-area-inset-top,0px)+1rem))] pb-[max(1.5rem,calc(env(safe-area-inset-bottom,0px)+1rem))]">
 
         <div className="w-full max-w-[480px] bg-white/80 backdrop-blur-xl rounded-[32px] p-8 sm:p-10 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] border border-white/60 relative">
 

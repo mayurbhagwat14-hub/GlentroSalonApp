@@ -5,7 +5,7 @@ export const ChatSkeleton = () => {
   return (
     <div className="flex flex-col h-[calc(100dvh-72px-env(safe-area-inset-bottom))] md:h-[calc(100vh-120px)] animate-fade-in max-w-4xl mx-auto w-full bg-white sm:rounded-2xl shadow-sm sm:border border-slate-100 overflow-hidden">
       {/* Header Skeleton */}
-      <div className="flex items-center gap-4 p-4 border-b border-slate-100 bg-white sticky top-0 z-10">
+      <div className="flex items-center gap-4 p-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] border-b border-slate-100 bg-white sticky top-0 z-10">
         <Skeleton className="w-10 h-10 rounded-xl" />
         <div className="flex flex-col gap-1">
           <SkeletonText lines={1} className="w-32" lineClassName="h-5" />
