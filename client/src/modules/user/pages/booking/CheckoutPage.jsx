@@ -252,7 +252,7 @@ const CheckoutPage = () => {
   return (
     <div className="bg-background text-on-surface font-body-md antialiased min-h-screen flex flex-col pb-[120px]">
       {/* Local Checkout Header */}
-      <header className="relative w-full bg-surface shadow-sm flex justify-between items-center px-4 md:px-margin-desktop h-16 rounded-2xl mt-[max(1rem,env(safe-area-inset-top,14px))] mb-2 max-w-md mx-auto">
+      <header className="relative w-full bg-surface shadow-sm flex justify-between items-center px-4 md:px-margin-desktop h-16 rounded-2xl mt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] md:mt-4 mb-2 max-w-md mx-auto">
         <button onClick={() => goBack(navigate, `/salon/${salonId}/book`)} className="text-on-surface-variant hover:bg-soft-primary p-2 rounded-full transition-colors active:scale-95 duration-150 flex items-center justify-center -ml-2">
           <span className="material-symbols-outlined text-[24px]">arrow_back</span>
         </button>

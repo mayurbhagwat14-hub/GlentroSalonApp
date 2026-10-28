@@ -83,7 +83,7 @@ const VendorLayout = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {!hideHeader && (
-          <header className="shrink-0 z-30 bg-surface/95 backdrop-blur-md border-b border-border min-h-[54px] pt-[env(safe-area-inset-top)] lg:h-[72px] lg:pt-0 px-3 lg:px-6 flex items-center justify-between">
+          <header className="shrink-0 z-30 bg-surface/95 backdrop-blur-md border-b border-border min-h-[58px] pt-[max(0.5rem,calc(env(safe-area-inset-top,0px)+0.25rem))] lg:h-[72px] lg:pt-0 px-3 lg:px-6 flex items-center justify-between">
             <div className="flex items-center gap-2 lg:gap-4 min-w-0 flex-1">
               <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-xl text-muted-text hover:bg-surface-variant active:bg-surface-variant flex items-center shrink-0">
                 <span className="material-symbols-outlined">menu</span>

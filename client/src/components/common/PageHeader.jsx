@@ -21,7 +21,7 @@ const PageHeader = ({ title, fallbackPath = '/', onBack }) => {
   };
 
   return (
-    <div className="flex items-center gap-2 pt-2 pb-1 md:hidden">
+    <div className="flex items-center gap-2 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] pb-2 md:hidden">
       <button 
         onClick={handleBack} 
         className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors -ml-1 text-on-surface"
