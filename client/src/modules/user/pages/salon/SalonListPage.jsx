@@ -69,7 +69,7 @@ const SalonListPage = () => {
   return (
     <div className="animate-fade-in min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md shadow-sm pt-[max(0.5rem,env(safe-area-inset-top,10px))]">
+      <header className="sticky top-0 z-40 bg-background/90 backdrop-blur-md shadow-sm pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] md:pt-2">
         <div className="flex justify-between items-center px-4 md:px-0 h-16 md:h-12 w-full">
           <button onClick={() => goBack(navigate, '/')} className="md:hidden p-2 text-on-surface-variant hover:bg-soft-primary transition-colors rounded-full active:scale-95 duration-150 -ml-2">
             <span className="material-symbols-outlined">arrow_back</span>

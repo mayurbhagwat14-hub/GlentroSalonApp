@@ -24,7 +24,7 @@ export const HomeSkeleton = () => {
   return (
     <div className="animate-fade-in space-y-6 w-full">
       {/* Header Skeleton */}
-      <header className="sticky top-[env(safe-area-inset-top)] z-40 bg-surface/90 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 md:mx-0 md:px-0">
+      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-md pb-4 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.75rem))] md:pt-4 -mx-4 px-4 md:mx-0 md:px-0">
         <div className="flex justify-between items-center mb-6">
           <div className="flex flex-col gap-2">
             <SkeletonText lines={1} lineClassName="h-5 w-48" />

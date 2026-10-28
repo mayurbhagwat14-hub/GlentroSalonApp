@@ -125,7 +125,7 @@ const SalonDetailPage = () => {
           {/* Gradient Overlay */}
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/10"></div>
           {/* Floating Actions */}
-          <div className="absolute top-[max(1.5rem,env(safe-area-inset-top))] left-4 right-4 flex justify-between items-center z-10">
+          <div className="absolute top-[max(1.5rem,calc(env(safe-area-inset-top,0px)+1rem))] left-4 right-4 flex justify-between items-center z-10">
             <button onClick={() => goBack(navigate, '/salons')} className="w-10 h-10 rounded-full bg-surface/90 backdrop-blur-sm flex items-center justify-center shadow-sm text-on-surface hover:bg-surface transition-colors">
               <span className="material-symbols-outlined">arrow_back</span>
             </button>
